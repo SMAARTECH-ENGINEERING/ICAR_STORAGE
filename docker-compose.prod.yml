@@ -1,0 +1,18 @@
+# Production topology for the single-EC2-instance deployment (see
+# DEPLOYMENT.md). Only the backend runs here — MongoDB is Atlas, the
+# frontend is static files on S3/CloudFront, and TLS termination is nginx
+# on the host (see deploy/aws/nginx-app.conf), not this container.
+#
+# Usage: docker compose -f docker-compose.prod.yml up -d --build
+# Requires a .env file in this directory — generate it with
+# deploy/aws/fetch-ssm-env.sh before running.
+services:
+  server:
+    build: ./server
+    restart: unless-stopped
+    # Bound to localhost only — nginx on the host proxies public 80/443 to
+    # this port; the container is never directly reachable from outside.
+    ports:
+      - "127.0.0.1:5000:5000"
+    env_file:
+      - .env

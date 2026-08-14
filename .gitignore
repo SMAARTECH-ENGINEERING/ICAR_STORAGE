@@ -1,0 +1,6 @@
+# Generated on the EC2 instance by deploy/aws/fetch-ssm-env.sh — contains
+# decrypted secrets, must never be committed.
+.env
+.env.local
+
+.DS_Store

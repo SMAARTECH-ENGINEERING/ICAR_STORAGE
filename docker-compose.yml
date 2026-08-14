@@ -1,0 +1,40 @@
+# Local full-stack smoke testing only — NOT the production topology.
+# In production: MongoDB is Atlas (not this mongo container), the backend
+# runs on ECS Fargate behind an ALB, and the frontend is static files on
+# S3/CloudFront. See DEPLOYMENT.md.
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  server:
+    build: ./server
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/icar_storage
+      JWT_SECRET: local_dev_jwt_secret_change_me
+      JWT_REFRESH_SECRET: local_dev_refresh_secret_change_me
+      DEVICE_API_KEY: change_this_shared_device_key
+      CORS_ORIGIN: http://localhost:8080
+      LOG_LEVEL: info
+    depends_on:
+      - mongo
+
+  client:
+    build:
+      context: ./client
+      args:
+        VITE_API_BASE_URL: http://localhost:5000/api/v1
+    ports:
+      - "8080:80"
+    depends_on:
+      - server
+
+volumes:
+  mongo_data:
