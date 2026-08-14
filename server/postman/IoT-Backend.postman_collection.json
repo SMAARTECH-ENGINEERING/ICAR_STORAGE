@@ -1,0 +1,1098 @@
+{
+  "info": {
+    "_postman_id": "b6f2a1c4-3e1a-4c2a-9d2e-1f7a8c0d5e11",
+    "name": "IoT Backend - ICAR Storage",
+    "description": "API collection for the dynamic multi-room IoT environmental monitoring and relay-control backend. All requests target the actual routes implemented under src/routes/. Run the folders top to bottom in Collection Runner: Auth -> Rooms -> Devices -> Telemetry -> Room State -> Relays -> Alerts -> Multi-Room Test.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "event": [],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "roomId", "value": "", "type": "string" },
+    { "key": "deviceId", "value": "", "type": "string" },
+    { "key": "relayId", "value": "", "type": "string" },
+    { "key": "commandId", "value": "", "type": "string" },
+    { "key": "alertId", "value": "", "type": "string" },
+    { "key": "deviceApiKey", "value": "change_this_shared_device_key", "type": "string" },
+    { "key": "roomIdA", "value": "", "type": "string" },
+    { "key": "roomIdB", "value": "", "type": "string" },
+    { "key": "deviceIdA", "value": "", "type": "string" },
+    { "key": "deviceIdB", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (Setup)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password@123\",\n  \"role\": \"SUPER_ADMIN\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Creates the SUPER_ADMIN user used by the rest of the collection. Returns 201 on first run, 409 USER_EXISTS on subsequent runs (both are treated as success by this request's tests)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 (created) or 409 (already registered)', function () {",
+                  "    pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.test('Response contains access token', function () {",
+                  "        var json = pm.response.json();",
+                  "        pm.expect(json.success).to.eql(true);",
+                  "        pm.expect(json.data.accessToken).to.be.a('string').and.not.empty;",
+                  "        pm.environment.set('accessToken', json.data.accessToken);",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"Password@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Logs in as the SUPER_ADMIN user created by 'Register (Setup)' and stores the access token used by every authenticated request in this collection."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Login token is present and saved', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.accessToken).to.be.a('string').and.not.empty;",
+                  "    pm.expect(json.data.refreshToken).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('accessToken', json.data.accessToken);",
+                  "});",
+                  "",
+                  "pm.test('Returned user has SUPER_ADMIN role', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.user.role).to.eql('SUPER_ADMIN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "Create Room",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Greenhouse A\",\n  \"location\": \"North Wing\",\n  \"description\": \"Primary greenhouse monitoring room\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms"]
+            },
+            "description": "Creates a room with a backend-generated roomId (never hardcoded). Requires SUPER_ADMIN or ADMIN role."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Room ID is present and saved', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.roomId).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('roomId', json.data.roomId);",
+                  "});",
+                  "",
+                  "pm.test('Room name matches request', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.name).to.eql('Greenhouse A');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Rooms",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms"]
+            },
+            "description": "Lists every room in the system, no matter how many exist."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array containing the created room', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    var ids = json.data.map(function (r) { return r.roomId; });",
+                  "    pm.expect(ids).to.include(pm.environment.get('roomId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Room",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/{{roomId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms", "{{roomId}}"]
+            },
+            "description": "Fetches a single room by its dynamic roomId."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returned room matches roomId variable', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.roomId).to.eql(pm.environment.get('roomId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Devices",
+      "item": [
+        {
+          "name": "Create Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"7semi_env_ctrl_{{$timestamp}}\",\n  \"roomId\": \"{{roomId}}\",\n  \"name\": \"Env Controller 1\",\n  \"deviceType\": \"env_ctrl\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices"]
+            },
+            "description": "Registers a device and assigns it to {{roomId}} (created in the Rooms folder). deviceId is suffixed with a Postman timestamp so re-runs never collide on the unique index. Requires SUPER_ADMIN or ADMIN role."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Device ID is present and saved', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.deviceId).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('deviceId', json.data.deviceId);",
+                  "});",
+                  "",
+                  "pm.test('Device is assigned to the created room', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.roomId).to.eql(pm.environment.get('roomId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Devices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/devices?roomId={{roomId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices"],
+              "query": [
+                { "key": "roomId", "value": "{{roomId}}" }
+              ]
+            },
+            "description": "Lists devices, filtered by the dynamic roomId query parameter."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains the created device', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    var ids = json.data.map(function (d) { return d.deviceId; });",
+                  "    pm.expect(ids).to.include(pm.environment.get('deviceId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Device",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}"]
+            },
+            "description": "Fetches a single device by its dynamic deviceId."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Returned device matches deviceId variable', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.deviceId).to.eql(pm.environment.get('deviceId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Telemetry",
+      "item": [
+        {
+          "name": "Send Telemetry",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-device-key", "value": "{{deviceApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"{{deviceId}}\",\n  \"timestamp\": \"{{$isoTimestamp}}\",\n  \"sensors\": {\n    \"upper\": { \"sensor_model\": \"SHT20\", \"temperature_c\": 31.6, \"humidity_percent\": 57.8 },\n    \"middle\": { \"sensor_model\": \"SHT40\", \"temperature_c\": 29.4, \"humidity_percent\": 60.9 },\n    \"lower\": { \"sensor_model\": \"BME280\", \"temperature_c\": 28.1, \"humidity_percent\": 64.2, \"pressure_hpa\": 1008.3 },\n    \"co2\": { \"sensor_model\": \"SCD40\", \"co2_ppm\": 875 }\n  },\n  \"relays\": {\n    \"relay_1\": { \"mode\": \"auto\", \"state\": \"ON\", \"control_source\": \"temperature_high\", \"controlling_zone\": \"max_of_upper_middle_lower\", \"highest_temperature_c\": 31.6, \"threshold_on_c\": 30, \"threshold_off_c\": 28 },\n    \"relay_2\": { \"mode\": \"manual\", \"state\": \"OFF\" },\n    \"relay_3\": { \"mode\": \"manual\", \"state\": \"ON\" },\n    \"relay_4\": { \"mode\": \"manual\", \"state\": \"OFF\" }\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/telemetry",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "telemetry"]
+            },
+            "description": "Ingests telemetry for {{deviceId}}, authenticated with the shared x-device-key header (must equal DEVICE_API_KEY in the backend's .env). Zone names (upper/middle/lower/co2) and relay names (relay_1..relay_4) are read dynamically by the backend, not hardcoded."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Telemetry stored successfully', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.stored).to.eql(true);",
+                  "    pm.expect(json.data.deviceId).to.eql(pm.environment.get('deviceId'));",
+                  "    pm.expect(json.data.roomId).to.eql(pm.environment.get('roomId'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Room State",
+      "item": [
+        {
+          "name": "Get Current State",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/{{roomId}}/current",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms", "{{roomId}}", "current"]
+            },
+            "description": "Returns the room, its devices, latest sensor state (DeviceState), relays, and active alerts in one call. Run after 'Send Telemetry' so sensorData/relays are populated."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Room current state has the expected shape', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.have.all.keys('room', 'devices', 'sensorData', 'relays', 'alerts');",
+                  "    pm.expect(json.data.room.roomId).to.eql(pm.environment.get('roomId'));",
+                  "    pm.expect(json.data.devices).to.be.an('array').that.is.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/{{roomId}}/history?limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms", "{{roomId}}", "history"],
+              "query": [
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Returns historical SensorReading documents for the room, newest first. Supports ?from=&to=&deviceId=&limit= query parameters."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('History is an array scoped to this room', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    if (json.data.length > 0) {",
+                  "        pm.expect(json.data[0].roomId).to.eql(pm.environment.get('roomId'));",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Relays",
+      "item": [
+        {
+          "name": "Get Relays",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays"]
+            },
+            "description": "Lists relays discovered dynamically for the device from telemetry (relay count/names are never hardcoded). Saves the first relay's relayId for use by the relay command requests below."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('At least one relay was synced from telemetry', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array').that.is.not.empty;",
+                  "    pm.environment.set('relayId', json.data[0].relayId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Manual Relay ON",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"manual\",\n  \"state\": \"ON\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/command",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "command"]
+            },
+            "description": "Manually switches {{relayId}} ON. Requires SUPER_ADMIN or ADMIN role. Creates a RelayCommand with status PENDING and returns 202 immediately — delivery happens the next time the device polls Get Pending Commands (Device Poll) below. Saves commandId for the Get Pending Commands / Acknowledge Command requests."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 202', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "pm.test('Relay command was issued with requested state ON', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.requestedState).to.eql('ON');",
+                  "    pm.expect(json.data.deviceId).to.eql(pm.environment.get('deviceId'));",
+                  "    pm.expect(json.data.relayId).to.eql(pm.environment.get('relayId'));",
+                  "    pm.expect(['PENDING', 'SENT', 'ACKNOWLEDGED', 'CONFIRMED', 'FAILED', 'TIMEOUT']).to.include(json.data.status);",
+                  "    pm.environment.set('commandId', json.data.commandId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Pending Commands (Device Poll)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "x-device-key", "value": "{{deviceApiKey}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/commands/pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "commands", "pending"]
+            },
+            "description": "Simulates the device polling for work (replaces the old MQTT command topic). Any PENDING command returned here is immediately marked SENT and its ack-timeout clock starts, so run this right after Manual Relay ON above."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Pending command list contains the issued command, now SENT', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    var match = json.data.find(function (c) { return c.commandId === pm.environment.get('commandId'); });",
+                  "    pm.expect(match, 'issued command should be in the pending list').to.exist;",
+                  "    pm.expect(match.status).to.eql('SENT');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Acknowledge Command (Device)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-device-key", "value": "{{deviceApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"state\": \"ON\",\n  \"success\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/commands/{{commandId}}/ack",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "commands", "{{commandId}}", "ack"]
+            },
+            "description": "Simulates the device reporting it executed the command (replaces the old MQTT ack topic). Confirms the relay's state and emits relay:stateChanged over Socket.IO."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Command is CONFIRMED after a successful ack', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.status).to.eql('CONFIRMED');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Manual Relay OFF",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"manual\",\n  \"state\": \"OFF\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/command",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "command"]
+            },
+            "description": "Manually switches {{relayId}} OFF. Requires SUPER_ADMIN or ADMIN role."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 202', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "pm.test('Relay command was issued with requested state OFF', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.requestedState).to.eql('OFF');",
+                  "    pm.expect(['PENDING', 'SENT', 'ACKNOWLEDGED', 'CONFIRMED', 'FAILED', 'TIMEOUT']).to.include(json.data.status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {
+          "name": "Get Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/alerts?roomId={{roomId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["alerts"],
+              "query": [
+                { "key": "roomId", "value": "{{roomId}}" }
+              ]
+            },
+            "description": "Lists alerts for the room. Alerts only appear once a sensor reading breaches ALERT_TEMP_HIGH_C / ALERT_HUMIDITY_HIGH_PERCENT / ALERT_CO2_HIGH_PPM or a device goes offline, so this may legitimately return an empty array."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});",
+                  "",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.length > 0) {",
+                  "    pm.test('First alert ID saved to alertId variable', function () {",
+                  "        pm.expect(json.data[0]._id).to.be.a('string').and.not.empty;",
+                  "        pm.environment.set('alertId', json.data[0]._id);",
+                  "    });",
+                  "} else {",
+                  "    console.log('No active alerts for this room yet - alertId not set.');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Multi-Room Test",
+      "description": "End-to-end scenario proving room isolation: two rooms, one device each, telemetry sent to both, then each room's /current endpoint is verified to return only its own device.",
+      "item": [
+        {
+          "name": "Create Room A",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Multi-Test Room A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms"]
+            },
+            "description": "First room of the isolation scenario. roomId is generated by the backend, never hardcoded."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Room A ID saved', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.roomId).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('roomIdA', json.data.roomId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Room B",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Multi-Test Room B\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms"]
+            },
+            "description": "Second room of the isolation scenario."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Room B ID saved', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.roomId).to.be.a('string').and.not.empty;",
+                  "    pm.environment.set('roomIdB', json.data.roomId);",
+                  "});",
+                  "",
+                  "pm.test('Room A and Room B have different IDs', function () {",
+                  "    pm.expect(pm.environment.get('roomIdB')).to.not.eql(pm.environment.get('roomIdA'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Device A (Room A)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"multi_dev_a_{{$timestamp}}\",\n  \"roomId\": \"{{roomIdA}}\",\n  \"name\": \"Multi Test Device A\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices"]
+            },
+            "description": "Assigned to Room A only."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Device A ID saved and assigned to Room A', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.deviceId).to.be.a('string').and.not.empty;",
+                  "    pm.expect(json.data.roomId).to.eql(pm.environment.get('roomIdA'));",
+                  "    pm.environment.set('deviceIdA', json.data.deviceId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Device B (Room B)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"multi_dev_b_{{$timestamp}}\",\n  \"roomId\": \"{{roomIdB}}\",\n  \"name\": \"Multi Test Device B\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices"]
+            },
+            "description": "Assigned to Room B only."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Device B ID saved and assigned to Room B', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.deviceId).to.be.a('string').and.not.empty;",
+                  "    pm.expect(json.data.roomId).to.eql(pm.environment.get('roomIdB'));",
+                  "    pm.environment.set('deviceIdB', json.data.deviceId);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Telemetry A",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-device-key", "value": "{{deviceApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"{{deviceIdA}}\",\n  \"timestamp\": \"{{$isoTimestamp}}\",\n  \"sensors\": {\n    \"upper\": { \"temperature_c\": 24.5, \"humidity_percent\": 45.0 }\n  },\n  \"relays\": {\n    \"relay_1\": { \"mode\": \"manual\", \"state\": \"OFF\" }\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/telemetry",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "telemetry"]
+            },
+            "description": "Telemetry for Device A, which belongs to Room A."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Telemetry A stored under Room A', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.stored).to.eql(true);",
+                  "    pm.expect(json.data.deviceId).to.eql(pm.environment.get('deviceIdA'));",
+                  "    pm.expect(json.data.roomId).to.eql(pm.environment.get('roomIdA'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Send Telemetry B",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-device-key", "value": "{{deviceApiKey}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_id\": \"{{deviceIdB}}\",\n  \"timestamp\": \"{{$isoTimestamp}}\",\n  \"sensors\": {\n    \"upper\": { \"temperature_c\": 22.0, \"humidity_percent\": 50.0 }\n  },\n  \"relays\": {\n    \"relay_1\": { \"mode\": \"manual\", \"state\": \"ON\" }\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/telemetry",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "telemetry"]
+            },
+            "description": "Telemetry for Device B, which belongs to Room B."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Telemetry B stored under Room B', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.stored).to.eql(true);",
+                  "    pm.expect(json.data.deviceId).to.eql(pm.environment.get('deviceIdB'));",
+                  "    pm.expect(json.data.roomId).to.eql(pm.environment.get('roomIdB'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Room A Isolation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/{{roomIdA}}/current",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms", "{{roomIdA}}", "current"]
+            },
+            "description": "Confirms Room A's current state contains only Device A - never Device B."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Room A contains exactly Device A and not Device B', function () {",
+                  "    var json = pm.response.json();",
+                  "    var deviceIds = json.data.devices.map(function (d) { return d.deviceId; });",
+                  "    pm.expect(deviceIds).to.include(pm.environment.get('deviceIdA'));",
+                  "    pm.expect(deviceIds).to.not.include(pm.environment.get('deviceIdB'));",
+                  "});",
+                  "",
+                  "pm.test('Every device returned belongs to Room A', function () {",
+                  "    var json = pm.response.json();",
+                  "    json.data.devices.forEach(function (d) {",
+                  "        pm.expect(d.roomId).to.eql(pm.environment.get('roomIdA'));",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('sensorData only reflects Room A devices', function () {",
+                  "    var json = pm.response.json();",
+                  "    json.data.sensorData.forEach(function (s) {",
+                  "        pm.expect(s.roomId).to.eql(pm.environment.get('roomIdA'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify Room B Isolation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/{{roomIdB}}/current",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms", "{{roomIdB}}", "current"]
+            },
+            "description": "Confirms Room B's current state contains only Device B - never Device A."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Room B contains exactly Device B and not Device A', function () {",
+                  "    var json = pm.response.json();",
+                  "    var deviceIds = json.data.devices.map(function (d) { return d.deviceId; });",
+                  "    pm.expect(deviceIds).to.include(pm.environment.get('deviceIdB'));",
+                  "    pm.expect(deviceIds).to.not.include(pm.environment.get('deviceIdA'));",
+                  "});",
+                  "",
+                  "pm.test('Every device returned belongs to Room B', function () {",
+                  "    var json = pm.response.json();",
+                  "    json.data.devices.forEach(function (d) {",
+                  "        pm.expect(d.roomId).to.eql(pm.environment.get('roomIdB'));",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('sensorData only reflects Room B devices', function () {",
+                  "    var json = pm.response.json();",
+                  "    json.data.sensorData.forEach(function (s) {",
+                  "        pm.expect(s.roomId).to.eql(pm.environment.get('roomIdB'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
