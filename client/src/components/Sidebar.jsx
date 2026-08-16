@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Bell, LayoutDashboard, Radio, Settings as SettingsIcon, Sprout } from 'lucide-react';
+import { Bell, LayoutDashboard, Radio, Settings as SettingsIcon } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -38,8 +38,8 @@ export default function Sidebar({ open, onClose }) {
         }`}
       >
         <div className="flex items-center gap-2 px-5 py-5">
-          <Sprout className="text-emerald-400" size={24} />
-          <span className="text-lg font-semibold text-white">ICAR Storage</span>
+          <img src="/logo-192.png" alt="Smaatech Agri" className="h-7 w-auto" />
+          <span className="text-lg font-semibold text-white">Smaatech Agri</span>
         </div>
 
         <nav className="flex-1 space-y-1 px-3">

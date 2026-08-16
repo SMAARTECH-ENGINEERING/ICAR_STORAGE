@@ -5,7 +5,7 @@ const KEYS = {
   USER: 'icar_user',
 };
 
-const BUILD_DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const BUILD_DEFAULT_API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://13.204.148.168:5000/api/v1';
 const DEFAULT_DEVICE_API_KEY = 'change_this_shared_device_key';
 
 export function getApiBaseUrl() {

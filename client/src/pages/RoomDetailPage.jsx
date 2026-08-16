@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, MapPin, Plus, Trash2 } from 'lucide-react';
 import { api } from '../lib/apiClient';
 import { useRoomSocket } from '../lib/socket';
 import { useAuth } from '../context/AuthContext';
@@ -9,8 +8,6 @@ import { canManage, isSuperAdmin } from '../lib/constants';
 import Badge, { statusVariant } from '../components/Badge';
 import DeviceCard from '../components/DeviceCard';
 import CreateDeviceModal from '../components/CreateDeviceModal';
-import ConfirmModal from '../components/ConfirmModal';
-import Tooltip from '../components/Tooltip';
 import AlertsList from '../components/AlertsList';
 
 export default function RoomDetailPage() {
@@ -22,8 +19,6 @@ export default function RoomDetailPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [addDeviceOpen, setAddDeviceOpen] = useState(false);
-  const [deleteRoomOpen, setDeleteRoomOpen] = useState(false);
-  const [deletingRoom, setDeletingRoom] = useState(false);
   const [live, setLive] = useState(false);
   const refetchTimer = useRef(null);
 
@@ -57,15 +52,13 @@ export default function RoomDetailPage() {
   useRoomSocket(roomId, { onAny: scheduleRefetch });
 
   async function handleDeleteRoom() {
-    setDeletingRoom(true);
+    if (!window.confirm(`Delete room "${data.room.name}"? This only works if it has no devices assigned.`)) return;
     try {
       await api.deleteRoom(roomId);
       push('Room deleted.', 'success');
       navigate('/');
     } catch (err) {
       push(err.message, 'error');
-      setDeletingRoom(false);
-      setDeleteRoomOpen(false);
     }
   }
 
@@ -76,28 +69,19 @@ export default function RoomDetailPage() {
 
   return (
     <div>
-      <Link to="/" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700">
-        <ArrowLeft size={16} /> Back to rooms
+      <Link to="/" className="text-sm text-slate-500 hover:text-slate-700">
+        ← Back to rooms
       </Link>
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3 rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl font-semibold text-slate-900">{room.name}</h2>
+            <h1 className="text-xl font-semibold text-slate-900">{room.name}</h1>
             <Badge variant={statusVariant(room.status)}>{room.status}</Badge>
-            {live && (
-              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                Live
-              </span>
-            )}
+            {live && <span className="text-xs text-emerald-600">● live</span>}
           </div>
           <p className="font-mono text-xs text-slate-400">{room.roomId}</p>
-          {room.location && (
-            <p className="mt-1 flex items-center gap-1 text-sm text-slate-600">
-              <MapPin size={14} /> {room.location}
-            </p>
-          )}
+          {room.location && <p className="mt-1 text-sm text-slate-600">📍 {room.location}</p>}
           {room.description && <p className="text-sm text-slate-500">{room.description}</p>}
         </div>
 
@@ -106,22 +90,19 @@ export default function RoomDetailPage() {
             <button
               type="button"
               onClick={() => setAddDeviceOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700"
             >
-              <Plus size={16} /> Add Device
+              + Add Device
             </button>
           )}
           {isSuperAdmin(user?.role) && (
-            <Tooltip label="Delete room">
-              <button
-                type="button"
-                onClick={() => setDeleteRoomOpen(true)}
-                className="rounded-lg p-2 text-red-500 hover:bg-red-50 hover:text-red-600"
-                aria-label="Delete room"
-              >
-                <Trash2 size={18} />
-              </button>
-            </Tooltip>
+            <button
+              type="button"
+              onClick={handleDeleteRoom}
+              className="rounded-lg px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+            >
+              Delete Room
+            </button>
           )}
         </div>
       </div>
@@ -134,7 +115,7 @@ export default function RoomDetailPage() {
           No devices assigned to this room yet.
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {devices.map((device) => (
             <DeviceCard
               key={device.deviceId}
@@ -154,16 +135,6 @@ export default function RoomDetailPage() {
 
       {addDeviceOpen && (
         <CreateDeviceModal roomId={roomId} onClose={() => setAddDeviceOpen(false)} onCreated={() => load(false)} />
-      )}
-
-      {deleteRoomOpen && (
-        <ConfirmModal
-          title="Delete Room"
-          message={`Delete room "${room.name}"? This only works if it has no devices assigned.`}
-          loading={deletingRoom}
-          onConfirm={handleDeleteRoom}
-          onClose={() => setDeleteRoomOpen(false)}
-        />
       )}
     </div>
   );
