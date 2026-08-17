@@ -39,11 +39,12 @@ Run the backend (`../server`) first — see `../server/README.md`.
 
 ## What's in the app
 
-Admin-panel layout: a persistent sidebar (Dashboard / Devices / Alerts / Settings) plus a full-width content area — nothing is boxed into a narrow centered column.
+Admin-panel layout: a persistent sidebar (Dashboard / Devices / Reports / Alerts / Settings) plus a full-width content area — nothing is boxed into a narrow centered column.
 
-- **Register / Login** — the backend doesn't restrict self-registration by role, so the register form lets you pick `SUPER_ADMIN`, `ADMIN`, or `VIEWER` directly (useful for testing RBAC).
+- **Register / Login** — the backend doesn't restrict self-registration by role, so the register form lets you pick `SUPER_ADMIN`, `ADMIN`, or `VIEWER` directly (useful for testing RBAC). Split-screen animated layout (`AuthLayout.jsx`) that swaps sides between the two.
 - **Dashboard** (`/`) — stat cards (room/device/online/active-alert counts, computed client-side from `GET /rooms`, `GET /devices`, `GET /alerts?status=active`) above a sortable, searchable, paginated **data table** of every room, with a "New Room" button for `ADMIN`/`SUPER_ADMIN`.
 - **Devices** (`/devices`) — a global data table of every device across every room (room name resolved client-side), with search/sort and an "Add Device" flow that includes a room picker.
+- **Reports** (`/reports`) — historical sensor readings across every room via `GET /reports/sensor-history`. A filter form (Room, Device — narrowed to the selected room, From/To date) plus the same searchable/sortable/paginated data table used elsewhere. The "To" date is treated as inclusive of that whole day client-side (a bare `YYYY-MM-DD` parses to that day's UTC midnight, which would otherwise exclude the day's own readings).
 - **Alerts** (`/alerts`) — a global, sortable/searchable data table of alerts with an Active/Resolved/All filter.
 - **Settings** (`/settings`) — API Base URL and Device API Key, plus your current signed-in identity.
 - **Room Detail** (`/rooms/:roomId`) — pulls `GET /rooms/:roomId/current` (room + devices + latest sensor state + relays + active alerts) and re-fetches automatically whenever a relevant Socket.IO event arrives for that room (`device:telemetry`, `device:online`, `device:offline`, `relay:stateChanged`, `relay:command`, `alert:created`, `alert:resolved`). Devices stay as rich cards here (not a table) since each has nested sensor/relay/automation UI:
@@ -70,7 +71,7 @@ src/
 │   ├── DataTable.jsx              # generic TanStack Table wrapper (sort/search/paginate)
 │   ├── StatCard.jsx                # dashboard stat tiles
 │   └── ...                          # Badge, Modal, DeviceCard, RelayRow, AutomationForm, ...
-├── pages/                  # LoginPage, RegisterPage, DashboardPage, DevicesPage, AlertsPage, SettingsPage, RoomDetailPage
+├── pages/                  # LoginPage, RegisterPage, DashboardPage, DevicesPage, ReportsPage, AlertsPage, SettingsPage, RoomDetailPage
 └── App.jsx                  # routes
 ```
 

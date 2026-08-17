@@ -105,6 +105,7 @@ Errors (from `src/middleware/errorHandler.js`):
 | GET  | `/devices/:deviceId/relays/:relayId/automation` | JWT | any | Get one relay's automation rule |
 | PUT  | `/devices/:deviceId/relays/:relayId/automation` | JWT | SUPER_ADMIN, ADMIN | Create/update a relay's automation rule |
 | GET  | `/alerts` | JWT | any | List alerts (`?roomId=&deviceId=&status=&limit=`) |
+| GET  | `/reports/sensor-history` | JWT | any | Historical sensor readings across every room (`?roomId=&deviceId=&from=&to=&limit=`) — global version of `/rooms/:roomId/history` |
 
 Routes are defined generically (`/:roomId`, `/:deviceId`, `/:relayId`) in [`src/routes/`](src/routes) — there is no per-room or per-device controller/branching anywhere in the codebase.
 

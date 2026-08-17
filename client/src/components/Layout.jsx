@@ -7,6 +7,7 @@ import ProfileMenu from './ProfileMenu';
 const TITLES = [
   { test: (p) => p === '/', title: 'Dashboard' },
   { test: (p) => p.startsWith('/devices'), title: 'Devices' },
+  { test: (p) => p.startsWith('/reports'), title: 'Reports' },
   { test: (p) => p.startsWith('/alerts'), title: 'Alerts' },
   { test: (p) => p.startsWith('/settings'), title: 'Settings' },
   { test: (p) => p.startsWith('/rooms/'), title: 'Room Detail' },

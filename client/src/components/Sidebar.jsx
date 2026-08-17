@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom';
-import { Bell, LayoutDashboard, Radio, Settings as SettingsIcon } from 'lucide-react';
+import { Bell, FileText, LayoutDashboard, Radio, Settings as SettingsIcon } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/devices', label: 'Devices', icon: Radio },
+  { to: '/reports', label: 'Reports', icon: FileText },
   { to: '/alerts', label: 'Alerts', icon: Bell },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];

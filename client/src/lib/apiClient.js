@@ -111,4 +111,7 @@ export const api = {
       .then((r) => r.data),
 
   listAlerts: (params) => http.get("/alerts", { params }).then((r) => r.data),
+
+  getSensorHistory: (params) =>
+    http.get("/reports/sensor-history", { params }).then((r) => r.data),
 };

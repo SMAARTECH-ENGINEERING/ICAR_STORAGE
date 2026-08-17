@@ -8,6 +8,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import DevicesPage from './pages/DevicesPage';
+import ReportsPage from './pages/ReportsPage';
 import AlertsPage from './pages/AlertsPage';
 import SettingsPage from './pages/SettingsPage';
 import RoomDetailPage from './pages/RoomDetailPage';
@@ -27,6 +28,7 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route path="/" element={<DashboardPage />} />
                 <Route path="/devices" element={<DevicesPage />} />
+                <Route path="/reports" element={<ReportsPage />} />
                 <Route path="/alerts" element={<AlertsPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
                 <Route path="/rooms/:roomId" element={<RoomDetailPage />} />
