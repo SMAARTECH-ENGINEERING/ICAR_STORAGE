@@ -12,7 +12,7 @@ import { colors, radius, spacing, typography } from '../../theme';
 
 const ROLE_TONE = { SUPER_ADMIN: 'danger', ADMIN: 'info', VIEWER: 'neutral' };
 
-export default function ProfileScreen() {
+export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -48,6 +48,12 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.duration(400).delay(100)}>
+          <SettingRow
+            icon="bar-chart-outline"
+            label="Reports"
+            hint="Sensor history by date range"
+            onPress={() => navigation.navigate('Reports')}
+          />
           <SettingRow
             icon="person-outline"
             label="Account"

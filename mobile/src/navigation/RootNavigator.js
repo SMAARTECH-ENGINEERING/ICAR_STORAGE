@@ -6,6 +6,7 @@ import DeviceDetailsScreen from '../screens/devices/DeviceDetailsScreen';
 import CreateEditDeviceScreen from '../screens/devices/CreateEditDeviceScreen';
 import AutomationScreen from '../screens/devices/AutomationScreen';
 import SensorHistoryScreen from '../screens/history/SensorHistoryScreen';
+import ReportsScreen from '../screens/history/ReportsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -21,6 +22,7 @@ export default function RootNavigator() {
       <Stack.Screen name="EditDevice" component={CreateEditDeviceScreen} />
       <Stack.Screen name="Automation" component={AutomationScreen} />
       <Stack.Screen name="SensorHistory" component={SensorHistoryScreen} />
+      <Stack.Screen name="Reports" component={ReportsScreen} />
     </Stack.Navigator>
   );
 }

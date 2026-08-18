@@ -1,3 +1,10 @@
+// The backend and its physical devices/rooms are India-based, so timestamps
+// are always displayed in IST regardless of the viewing device's own locale
+// or timezone — otherwise two admins in different timezones would see
+// different wall-clock times for the same reading.
+const TIME_ZONE = 'Asia/Kolkata';
+const LOCALE = 'en-IN';
+
 export function timeAgo(date) {
   if (!date) return '';
   const then = new Date(date).getTime();
@@ -13,7 +20,7 @@ export function timeAgo(date) {
   if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} day${days === 1 ? '' : 's'} ago`;
-  return new Date(date).toLocaleDateString();
+  return new Date(date).toLocaleDateString(LOCALE, { timeZone: TIME_ZONE });
 }
 
 export function greeting() {
@@ -25,10 +32,13 @@ export function greeting() {
 
 export function formatDateTime(date) {
   if (!date) return '--';
-  return new Date(date).toLocaleString(undefined, {
+  const formatted = new Date(date).toLocaleString(LOCALE, {
+    timeZone: TIME_ZONE,
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: true,
   });
+  return `${formatted} IST`;
 }
