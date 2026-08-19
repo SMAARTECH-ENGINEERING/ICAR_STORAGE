@@ -19,7 +19,8 @@ const refresh = catchAsync(async (req, res) => {
 });
 
 const me = catchAsync(async (req, res) => {
-  return sendSuccess(res, 200, req.user);
+  const user = await authService.me(req.user.userId);
+  return sendSuccess(res, 200, user);
 });
 
 const registerPushToken = catchAsync(async (req, res) => {

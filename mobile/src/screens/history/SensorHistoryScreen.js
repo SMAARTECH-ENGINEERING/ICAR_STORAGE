@@ -139,8 +139,8 @@ function HistoryRow({ reading }) {
 }
 
 const styles = StyleSheet.create({
-  filterRow: { flexGrow: 0, marginBottom: spacing.sm },
-  filterRowContent: { paddingHorizontal: spacing.lg },
+  filterRow: { flexGrow: 0, marginBottom: spacing.md },
+  filterRowContent: { paddingHorizontal: spacing.lg, alignItems: 'center' },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 60, flexGrow: 1 },
   footerLoader: { marginVertical: spacing.md },
   row: {

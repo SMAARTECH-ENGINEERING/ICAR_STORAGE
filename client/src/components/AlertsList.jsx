@@ -1,45 +1,112 @@
+import { useMemo, useState } from 'react';
+import { CheckCircle2 } from 'lucide-react';
 import Badge, { severityVariant } from './Badge';
 import { formatDateTime } from '../lib/datetime';
+import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+import { hasPermission } from '../lib/constants';
+import { api } from '../lib/apiClient';
+import Tooltip from './Tooltip';
+import ConfirmModal from './ConfirmModal';
+import DataTable from './DataTable';
 
-export default function AlertsList({ alerts }) {
-  if (!alerts || alerts.length === 0) {
-    return (
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-500">
-        No active alerts for this room.
-      </div>
-    );
+export default function AlertsList({ alerts, onResolved }) {
+  const { user } = useAuth();
+  const { push } = useToast();
+  const [pendingAlert, setPendingAlert] = useState(null);
+  const [resolving, setResolving] = useState(false);
+
+  async function handleConfirmResolve() {
+    if (!pendingAlert) return;
+    setResolving(true);
+    try {
+      await api.resolveAlert(pendingAlert._id);
+      push('Alert resolved.', 'success');
+      setPendingAlert(null);
+      onResolved?.();
+    } catch (err) {
+      push(err.message, 'error');
+    } finally {
+      setResolving(false);
+    }
   }
 
+  const columns = useMemo(
+    () => [
+      { accessorKey: 'type', header: 'Type', cell: ({ getValue }) => <span className="font-medium text-slate-900">{getValue()}</span> },
+      {
+        accessorKey: 'deviceId',
+        header: 'Device',
+        cell: ({ getValue }) => <span className="font-mono text-xs text-slate-500">{getValue()}</span>,
+      },
+      { accessorKey: 'parameter', header: 'Parameter', cell: ({ getValue }) => getValue() || '-' },
+      {
+        id: 'valueThreshold',
+        header: 'Value / Threshold',
+        accessorFn: (alert) => alert.value ?? 0,
+        cell: ({ row }) => (
+          <span>
+            {row.original.value ?? '-'} / {row.original.threshold ?? '-'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'severity',
+        header: 'Severity',
+        cell: ({ getValue }) => <Badge variant={severityVariant(getValue())}>{getValue()}</Badge>,
+      },
+      {
+        accessorKey: 'createdAt',
+        header: 'Since',
+        cell: ({ getValue }) => <span className="text-xs text-slate-500">{formatDateTime(getValue())}</span>,
+      },
+      ...(hasPermission(user, 'alerts:update')
+        ? [
+            {
+              id: 'actions',
+              header: '',
+              enableSorting: false,
+              cell: ({ row }) => (
+                <div className="text-right">
+                  <Tooltip label="Resolve alert">
+                    <button
+                      type="button"
+                      onClick={() => setPendingAlert(row.original)}
+                      className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                      aria-label="Resolve alert"
+                    >
+                      <CheckCircle2 size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
+              ),
+            },
+          ]
+        : []),
+    ],
+    [user]
+  );
+
   return (
-    <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-          <tr>
-            <th className="px-4 py-2">Type</th>
-            <th className="px-4 py-2">Device</th>
-            <th className="px-4 py-2">Parameter</th>
-            <th className="px-4 py-2">Value / Threshold</th>
-            <th className="px-4 py-2">Severity</th>
-            <th className="px-4 py-2">Since</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {alerts.map((alert) => (
-            <tr key={alert._id}>
-              <td className="px-4 py-2 font-medium text-slate-900">{alert.type}</td>
-              <td className="px-4 py-2 font-mono text-xs text-slate-500">{alert.deviceId}</td>
-              <td className="px-4 py-2 text-slate-600">{alert.parameter || '-'}</td>
-              <td className="px-4 py-2 text-slate-600">
-                {alert.value ?? '-'} / {alert.threshold ?? '-'}
-              </td>
-              <td className="px-4 py-2">
-                <Badge variant={severityVariant(alert.severity)}>{alert.severity}</Badge>
-              </td>
-              <td className="px-4 py-2 text-xs text-slate-500">{formatDateTime(alert.createdAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <DataTable
+        columns={columns}
+        data={alerts || []}
+        searchPlaceholder="Search alerts..."
+        emptyMessage="No active alerts for this room."
+      />
+
+      {pendingAlert && (
+        <ConfirmModal
+          title="Resolve alert"
+          message={`Mark this ${pendingAlert.type} alert as resolved?`}
+          confirmLabel="Resolve"
+          danger={false}
+          loading={resolving}
+          onConfirm={handleConfirmResolve}
+          onClose={() => setPendingAlert(null)}
+        />
+      )}
+    </>
   );
 }

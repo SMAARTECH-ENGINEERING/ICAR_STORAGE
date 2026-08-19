@@ -4,7 +4,7 @@ import { Bell, Home, Plus, Radio, Trash2, Wifi } from 'lucide-react';
 import { api } from '../lib/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { canManage, isSuperAdmin } from '../lib/constants';
+import { hasPermission } from '../lib/constants';
 import Badge, { statusVariant } from '../components/Badge';
 import StatCard from '../components/StatCard';
 import DataTable from '../components/DataTable';
@@ -110,7 +110,7 @@ export default function DashboardPage() {
         header: '',
         enableSorting: false,
         cell: ({ row }) =>
-          isSuperAdmin(user?.role) && (
+          hasPermission(user, 'rooms:delete') && (
             <Tooltip label="Delete room">
               <button
                 type="button"
@@ -132,7 +132,7 @@ export default function DashboardPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <p className="text-sm text-slate-500">System-wide overview across every room.</p>
-        {canManage(user?.role) && (
+        {hasPermission(user, 'rooms:create') && (
           <button
             type="button"
             onClick={() => setCreateOpen(true)}

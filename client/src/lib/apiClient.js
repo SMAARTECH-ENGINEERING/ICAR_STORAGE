@@ -111,7 +111,23 @@ export const api = {
       .then((r) => r.data),
 
   listAlerts: (params) => http.get("/alerts", { params }).then((r) => r.data),
+  resolveAlert: (alertId) =>
+    http.patch(`/alerts/${alertId}/resolve`).then((r) => r.data),
 
   getSensorHistory: (params) =>
     http.get("/reports/sensor-history", { params }).then((r) => r.data),
+
+  listAuditLogs: (params) =>
+    http.get("/audit-logs", { params }).then((r) => r.data),
+
+  listPermissions: () => http.get("/roles/permissions").then((r) => r.data),
+  listRoles: () => http.get("/roles").then((r) => r.data),
+  createRole: (payload) => http.post("/roles", payload).then((r) => r.data),
+  updateRole: (roleId, payload) =>
+    http.put(`/roles/${roleId}`, payload).then((r) => r.data),
+  deleteRole: (roleId) => http.delete(`/roles/${roleId}`).then((r) => r.data),
+
+  listUsers: () => http.get("/users").then((r) => r.data),
+  assignUserRole: (userId, role) =>
+    http.put(`/users/${userId}/role`, { role }).then((r) => r.data),
 };

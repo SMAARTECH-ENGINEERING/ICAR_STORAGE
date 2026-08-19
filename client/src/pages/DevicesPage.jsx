@@ -4,7 +4,7 @@ import { Plus, Trash2 } from 'lucide-react';
 import { api } from '../lib/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { canManage, isSuperAdmin } from '../lib/constants';
+import { hasPermission } from '../lib/constants';
 import Badge, { statusVariant } from '../components/Badge';
 import DataTable from '../components/DataTable';
 import CreateDeviceModal from '../components/CreateDeviceModal';
@@ -110,7 +110,7 @@ export default function DevicesPage() {
         header: '',
         enableSorting: false,
         cell: ({ row }) =>
-          isSuperAdmin(user?.role) && (
+          hasPermission(user, 'devices:delete') && (
             <Tooltip label="Delete device">
               <button
                 type="button"
@@ -132,7 +132,7 @@ export default function DevicesPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <p className="text-sm text-slate-500">Every device across every room.</p>
-        {canManage(user?.role) && rooms.length > 0 && (
+        {hasPermission(user, 'devices:create') && rooms.length > 0 && (
           <button
             type="button"
             onClick={() => setCreateOpen(true)}

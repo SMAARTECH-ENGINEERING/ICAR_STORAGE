@@ -5,7 +5,7 @@ import AutomationForm from './AutomationForm';
 import { api } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { canManage } from '../lib/constants';
+import { hasPermission } from '../lib/constants';
 
 export default function RelayRow({ relay, deviceId, availableZones }) {
   const { user } = useAuth();
@@ -34,7 +34,7 @@ export default function RelayRow({ relay, deviceId, availableZones }) {
           <Badge variant={relayStateVariant(relay.state)}>{relay.state}</Badge>
         </div>
 
-        {canManage(user?.role) && (
+        {hasPermission(user, 'relays:update') && (
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -72,7 +72,7 @@ export default function RelayRow({ relay, deviceId, availableZones }) {
         </p>
       )}
 
-      {showAutomation && canManage(user?.role) && (
+      {showAutomation && hasPermission(user, 'relays:update') && (
         <div className="mt-3">
           <AutomationForm deviceId={deviceId} relayId={relay.relayId} availableZones={availableZones} />
         </div>

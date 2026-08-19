@@ -1,11 +1,12 @@
 const Joi = require('joi');
-const { ROLES } = require('../utils/constants');
 
 const registerSchema = Joi.object({
   name: Joi.string().trim().min(1).max(120).required(),
   email: Joi.string().trim().email().required(),
   password: Joi.string().min(8).max(200).required(),
-  role: Joi.string().valid(...Object.values(ROLES)),
+  // Existence is checked against the Role collection in authService.register
+  // (roles are dynamic, not a fixed enum) — this only bounds the shape.
+  role: Joi.string().trim().max(60),
 });
 
 const loginSchema = Joi.object({

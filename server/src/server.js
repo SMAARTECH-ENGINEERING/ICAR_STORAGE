@@ -6,9 +6,11 @@ const app = require('./app');
 const socketService = require('./sockets');
 const deviceStatusJob = require('./jobs/deviceStatusJob');
 const retentionJob = require('./jobs/retentionJob');
+const roleService = require('./services/roleService');
 
 async function start() {
   await connectDB();
+  await roleService.ensureDefaultRoles();
 
   const httpServer = http.createServer(app);
 

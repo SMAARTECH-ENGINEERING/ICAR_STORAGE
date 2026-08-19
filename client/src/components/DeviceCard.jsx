@@ -10,7 +10,7 @@ import ConfirmModal from './ConfirmModal';
 import { api } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { isSuperAdmin } from '../lib/constants';
+import { hasPermission } from '../lib/constants';
 import { formatDateTime } from '../lib/datetime';
 
 export default function DeviceCard({ device, sensorState, relays, onDeleted }) {
@@ -50,7 +50,7 @@ export default function DeviceCard({ device, sensorState, relays, onDeleted }) {
             last seen {formatDateTime(device.lastSeen, 'never')}
           </p>
         </div>
-        {isSuperAdmin(user?.role) && (
+        {hasPermission(user, 'devices:delete') && (
           <Tooltip label="Delete device">
             <button
               type="button"

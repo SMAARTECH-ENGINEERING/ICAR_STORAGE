@@ -4,7 +4,7 @@ import { api } from '../lib/apiClient';
 import { useRoomSocket } from '../lib/socket';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
-import { canManage, isSuperAdmin } from '../lib/constants';
+import { hasPermission } from '../lib/constants';
 import Badge, { statusVariant } from '../components/Badge';
 import DeviceCard from '../components/DeviceCard';
 import CreateDeviceModal from '../components/CreateDeviceModal';
@@ -86,7 +86,7 @@ export default function RoomDetailPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {canManage(user?.role) && (
+          {hasPermission(user, 'devices:create') && (
             <button
               type="button"
               onClick={() => setAddDeviceOpen(true)}
@@ -95,7 +95,7 @@ export default function RoomDetailPage() {
               + Add Device
             </button>
           )}
-          {isSuperAdmin(user?.role) && (
+          {hasPermission(user, 'rooms:delete') && (
             <button
               type="button"
               onClick={handleDeleteRoom}
@@ -131,7 +131,7 @@ export default function RoomDetailPage() {
       <h2 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-slate-400">
         Active Alerts ({alerts.length})
       </h2>
-      <AlertsList alerts={alerts} />
+      <AlertsList alerts={alerts} onResolved={() => load(false)} />
 
       {addDeviceOpen && (
         <CreateDeviceModal roomId={roomId} onClose={() => setAddDeviceOpen(false)} onCreated={() => load(false)} />

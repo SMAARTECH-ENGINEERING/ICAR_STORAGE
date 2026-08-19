@@ -9,6 +9,9 @@ const TITLES = [
   { test: (p) => p.startsWith('/devices'), title: 'Devices' },
   { test: (p) => p.startsWith('/reports'), title: 'Reports' },
   { test: (p) => p.startsWith('/alerts'), title: 'Alerts' },
+  { test: (p) => p.startsWith('/audit-log'), title: 'Audit Log' },
+  { test: (p) => p.startsWith('/roles'), title: 'Roles & Permissions' },
+  { test: (p) => p.startsWith('/users'), title: 'Users' },
   { test: (p) => p.startsWith('/settings'), title: 'Settings' },
   { test: (p) => p.startsWith('/rooms/'), title: 'Room Detail' },
 ];

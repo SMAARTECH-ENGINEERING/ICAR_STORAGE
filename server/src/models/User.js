@@ -16,10 +16,13 @@ const userSchema = new Schema(
       trim: true,
     },
     passwordHash: { type: String, required: true },
+    // Free-form: matches a Role document's `name` (see models/Role.js).
+    // Roles are dynamic/DB-driven, not a fixed enum — ROLES.VIEWER below is
+    // only the seeded default a fresh registration falls back to.
     role: {
       type: String,
-      enum: Object.values(ROLES),
       default: ROLES.VIEWER,
+      trim: true,
     },
     active: { type: Boolean, default: true },
   },

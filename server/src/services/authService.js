@@ -2,6 +2,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const { generateId } = require('../utils/idGenerator');
+const { ROLES } = require('../utils/constants');
+const roleService = require('./roleService');
 const env = require('../config/env');
 
 function signAccessToken(user) {
@@ -16,10 +18,23 @@ function signRefreshToken(user) {
   });
 }
 
+// permissions are resolved fresh from the Role collection for the response
+// payload only — never trusted from the JWT for actual access control (see
+// authorizePermission in middleware/auth.js).
+async function userView(user) {
+  const permissions = await roleService.getPermissionsForRoleName(user.role);
+  return { userId: user.userId, name: user.name, email: user.email, role: user.role, permissions };
+}
+
 async function register({ name, email, password, role }) {
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
     throw ApiError.conflict('A user with this email already exists', 'USER_EXISTS');
+  }
+
+  const roleName = role || ROLES.VIEWER;
+  if (!(await roleService.roleExists(roleName))) {
+    throw ApiError.badRequest(`Unknown role "${roleName}"`, 'ROLE_NOT_FOUND');
   }
 
   const passwordHash = await User.hashPassword(password);
@@ -28,11 +43,11 @@ async function register({ name, email, password, role }) {
     name,
     email,
     passwordHash,
-    role,
+    role: roleName,
   });
 
   return {
-    user: { userId: user.userId, name: user.name, email: user.email, role: user.role },
+    user: await userView(user),
     accessToken: signAccessToken(user),
     refreshToken: signRefreshToken(user),
   };
@@ -50,7 +65,7 @@ async function login({ email, password }) {
   }
 
   return {
-    user: { userId: user.userId, name: user.name, email: user.email, role: user.role },
+    user: await userView(user),
     accessToken: signAccessToken(user),
     refreshToken: signRefreshToken(user),
   };
@@ -75,4 +90,12 @@ async function refresh(refreshToken) {
   };
 }
 
-module.exports = { register, login, refresh };
+async function me(userId) {
+  const user = await User.findOne({ userId });
+  if (!user || !user.active) {
+    throw ApiError.unauthorized('User not found or inactive', 'USER_INACTIVE');
+  }
+  return userView(user);
+}
+
+module.exports = { register, login, refresh, me };

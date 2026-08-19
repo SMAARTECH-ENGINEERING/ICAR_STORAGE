@@ -255,8 +255,8 @@ function HistoryRow({ reading }) {
 }
 
 const styles = StyleSheet.create({
-  chipList: { flexGrow: 0, marginTop: spacing.md },
-  chipListContent: { paddingHorizontal: spacing.lg },
+  chipList: { flexGrow: 0, marginTop: spacing.xs, marginBottom: spacing.xs },
+  chipListContent: { paddingHorizontal: spacing.lg, alignItems: 'center' },
   dateRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.md },
   listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 60, flexGrow: 1 },
   footerLoader: { marginVertical: spacing.md },

@@ -129,9 +129,28 @@ async function listAlerts(filter = {}) {
   return Alert.find(query).sort({ createdAt: -1 }).limit(filter.limit || 200);
 }
 
+// Manual resolution: an operator acknowledges/clears an alert directly, as
+// opposed to resolveAlert() above which fires automatically once the
+// underlying sensor reading drops back below threshold.
+async function resolveAlertById(alertId) {
+  const alert = await Alert.findById(alertId);
+  if (!alert) {
+    return null;
+  }
+  if (alert.status === ALERT_STATUS.RESOLVED) {
+    return { alert, changed: false };
+  }
+  alert.status = ALERT_STATUS.RESOLVED;
+  alert.resolvedAt = new Date();
+  await alert.save();
+  socketService.emitToRoomAndDevice(alert.roomId, alert.deviceId, 'alert:resolved', alert);
+  return { alert, changed: true };
+}
+
 module.exports = {
   raiseAlert,
   resolveAlert,
+  resolveAlertById,
   evaluateSensorAlerts,
   raiseDeviceOfflineAlert,
   resolveDeviceOfflineAlert,

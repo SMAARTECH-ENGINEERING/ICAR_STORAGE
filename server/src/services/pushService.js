@@ -1,7 +1,7 @@
 const PushToken = require('../models/PushToken');
 const User = require('../models/User');
 const logger = require('../config/logger');
-const { ROLES } = require('../utils/constants');
+const roleService = require('./roleService');
 
 // Delivery goes through Expo's push relay, not Firebase directly — the
 // mobile app registers an Expo push token (obtained via
@@ -57,8 +57,12 @@ function alertBody(alert) {
 // problem can never break alert creation itself (the caller does not await this).
 async function notifyAlertCreated(alert) {
   try {
+    // Whoever can act on alerts today gets notified — dynamic, so a custom
+    // role granted alerts:update starts receiving pushes automatically.
+    const roleNames = await roleService.getRoleNamesWithPermission('alerts:update');
+    if (!roleNames.length) return;
     const managers = await User.find({
-      role: { $in: [ROLES.SUPER_ADMIN, ROLES.ADMIN] },
+      role: { $in: roleNames },
       active: true,
     }).select('userId');
     const userIds = managers.map((u) => u.userId);

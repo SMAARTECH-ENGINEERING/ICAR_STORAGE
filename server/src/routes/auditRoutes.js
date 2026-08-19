@@ -1,11 +1,12 @@
 const express = require('express');
-const reportController = require('../controllers/reportController');
+const auditController = require('../controllers/auditController');
 const { authenticate, authorizePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
 router.use(authenticate);
+router.use(authorizePermission('audit-logs:read'));
 
-router.get('/sensor-history', authorizePermission('reports:read'), reportController.getSensorHistory);
+router.get('/', auditController.listAuditLogs);
 
 module.exports = router;

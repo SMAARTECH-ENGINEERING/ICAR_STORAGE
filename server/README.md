@@ -23,7 +23,7 @@ Room -> Device -> Sensor Data -> Relay -> Automation -> Alerts
 - **MongoDB** + **Mongoose** — persistence
 - **Socket.IO** — real-time push to dashboards/UIs
 - **JWT** (`jsonwebtoken`) — user authentication
-- **RBAC** — `SUPER_ADMIN`, `ADMIN`, `VIEWER` roles
+- **RBAC** — dynamic, database-backed roles & permissions (not hardcoded); ships seeded with `SUPER_ADMIN`, `ADMIN`, `VIEWER`
 - **Joi** — request/payload validation
 - **Winston** — structured logging
 - **node-cron** — scheduled jobs (device offline sweep, sensor data retention cleanup)
@@ -81,33 +81,43 @@ Errors (from `src/middleware/errorHandler.js`):
 | POST | `/auth/register` | none | — | Create a user |
 | POST | `/auth/login` | none | — | Log in, get tokens |
 | POST | `/auth/refresh` | none | — | Exchange refresh token for a new access token |
-| GET  | `/auth/me` | JWT | any | Current user info from the token |
-| POST | `/rooms` | JWT | SUPER_ADMIN, ADMIN | Create a room |
-| GET  | `/rooms` | JWT | any | List rooms (`?status=`) |
-| GET  | `/rooms/:roomId` | JWT | any | Get one room |
-| PUT  | `/rooms/:roomId` | JWT | SUPER_ADMIN, ADMIN | Update a room |
-| DELETE | `/rooms/:roomId` | JWT | SUPER_ADMIN | Delete a room (fails if it still has devices) |
-| GET  | `/rooms/:roomId/devices` | JWT | any | List devices assigned to a room |
-| GET  | `/rooms/:roomId/current` | JWT | any | Room snapshot: devices, latest sensor state, relays, active alerts |
-| GET  | `/rooms/:roomId/history` | JWT | any | Historical sensor readings (`?from=&to=&deviceId=&limit=`) |
+| GET  | `/auth/me` | JWT | any | Current user info from the token, including live-resolved `permissions` |
+| POST | `/rooms` | JWT | `rooms:create` | Create a room |
+| GET  | `/rooms` | JWT | `rooms:read` | List rooms (`?status=`) |
+| GET  | `/rooms/:roomId` | JWT | `rooms:read` | Get one room |
+| PUT  | `/rooms/:roomId` | JWT | `rooms:update` | Update a room |
+| DELETE | `/rooms/:roomId` | JWT | `rooms:delete` | Delete a room (fails if it still has devices) |
+| GET  | `/rooms/:roomId/devices` | JWT | `rooms:read` | List devices assigned to a room |
+| GET  | `/rooms/:roomId/current` | JWT | `rooms:read` | Room snapshot: devices, latest sensor state, relays, active alerts |
+| GET  | `/rooms/:roomId/history` | JWT | `rooms:read` | Historical sensor readings (`?from=&to=&deviceId=&limit=`) |
 | POST | `/devices/telemetry` | Device key | — | Ingest telemetry from a device |
 | GET  | `/devices/:deviceId/commands/pending` | Device key | — | Device polls for relay commands to execute |
 | POST | `/devices/:deviceId/commands/:commandId/ack` | Device key | — | Device reports the result of executing a command |
-| POST | `/devices` | JWT | SUPER_ADMIN, ADMIN | Register/assign a device to a room |
-| GET  | `/devices` | JWT | any | List devices (`?roomId=&status=`) |
-| GET  | `/devices/:deviceId` | JWT | any | Get one device |
-| PUT  | `/devices/:deviceId` | JWT | SUPER_ADMIN, ADMIN | Update a device (e.g. re-assign `roomId`) |
-| DELETE | `/devices/:deviceId` | JWT | SUPER_ADMIN | Delete a device and its related state/relays/commands/readings |
-| GET  | `/devices/:deviceId/relays` | JWT | any | List relays discovered for a device |
-| GET  | `/devices/:deviceId/relays/automation` | JWT | any | List automation rules for a device |
-| POST | `/devices/:deviceId/relays/:relayId/command` | JWT | SUPER_ADMIN, ADMIN | Manually set a relay's mode/state |
-| GET  | `/devices/:deviceId/relays/:relayId/commands` | JWT | any | Relay command history (`?limit=`) |
-| GET  | `/devices/:deviceId/relays/:relayId/automation` | JWT | any | Get one relay's automation rule |
-| PUT  | `/devices/:deviceId/relays/:relayId/automation` | JWT | SUPER_ADMIN, ADMIN | Create/update a relay's automation rule |
-| GET  | `/alerts` | JWT | any | List alerts (`?roomId=&deviceId=&status=&limit=`) |
-| GET  | `/reports/sensor-history` | JWT | any | Historical sensor readings across every room (`?roomId=&deviceId=&from=&to=&limit=`) — global version of `/rooms/:roomId/history` |
+| POST | `/devices` | JWT | `devices:create` | Register/assign a device to a room |
+| GET  | `/devices` | JWT | `devices:read` | List devices (`?roomId=&status=`) |
+| GET  | `/devices/:deviceId` | JWT | `devices:read` | Get one device |
+| PUT  | `/devices/:deviceId` | JWT | `devices:update` | Update a device (e.g. re-assign `roomId`) |
+| DELETE | `/devices/:deviceId` | JWT | `devices:delete` | Delete a device and its related state/relays/commands/readings |
+| GET  | `/devices/:deviceId/relays` | JWT | `relays:read` | List relays discovered for a device |
+| GET  | `/devices/:deviceId/relays/automation` | JWT | `relays:read` | List automation rules for a device |
+| POST | `/devices/:deviceId/relays/:relayId/command` | JWT | `relays:update` | Manually set a relay's mode/state |
+| GET  | `/devices/:deviceId/relays/:relayId/commands` | JWT | `relays:read` | Relay command history (`?limit=`) |
+| GET  | `/devices/:deviceId/relays/:relayId/automation` | JWT | `relays:read` | Get one relay's automation rule |
+| PUT  | `/devices/:deviceId/relays/:relayId/automation` | JWT | `relays:update` | Create/update a relay's automation rule |
+| GET  | `/alerts` | JWT | `alerts:read` | List alerts (`?roomId=&deviceId=&status=&limit=`) |
+| PATCH | `/alerts/:alertId/resolve` | JWT | `alerts:update` | Manually resolve an active alert (sets `status=resolved`, `resolvedAt`) |
+| GET  | `/reports/sensor-history` | JWT | `reports:read` | Historical sensor readings across every room (`?roomId=&deviceId=&from=&to=&limit=`) — global version of `/rooms/:roomId/history` |
+| GET  | `/audit-logs` | JWT | `audit-logs:read` | List audit log entries (`?userId=&action=&roomId=&deviceId=&from=&to=&limit=`) |
+| GET  | `/roles/permissions` | JWT | `admin:manage` | The full catalog of definable permission keys, grouped by resource |
+| GET  | `/roles` | JWT | `admin:manage` | List roles with their permissions |
+| POST | `/roles` | JWT | `admin:manage` | Create a role (`{name, description, permissions: []}`) |
+| GET  | `/roles/:roleId` | JWT | `admin:manage` | Get one role |
+| PUT  | `/roles/:roleId` | JWT | `admin:manage` | Update a role's name/description/permissions |
+| DELETE | `/roles/:roleId` | JWT | `admin:manage` | Delete a role (fails if seeded/system, or still assigned to users) |
+| GET  | `/users` | JWT | `admin:manage` | List users and their assigned role |
+| PUT  | `/users/:userId/role` | JWT | `admin:manage` | Assign a different role to a user (cannot change your own) |
 
-Routes are defined generically (`/:roomId`, `/:deviceId`, `/:relayId`) in [`src/routes/`](src/routes) — there is no per-room or per-device controller/branching anywhere in the codebase.
+Routes are defined generically (`/:roomId`, `/:deviceId`, `/:relayId`) in [`src/routes/`](src/routes) — there is no per-room or per-device controller/branching anywhere in the codebase. Every gated route calls `authorizePermission(key)` (see [`src/middleware/auth.js`](src/middleware/auth.js)), which resolves the caller's role to its *current* permission set from the `Role` collection on every request — nothing is hardcoded to a fixed role name.
 
 ## 7. Authentication
 
@@ -120,7 +130,7 @@ Content-Type: application/json
 
 { "name": "Admin User", "email": "admin@example.com", "password": "password123", "role": "SUPER_ADMIN" }
 ```
-`role` is optional and defaults to `VIEWER` if omitted (see `User` model default).
+`role` is optional and defaults to `VIEWER` if omitted. It must name a role that exists in the `Role` collection — a 400 `ROLE_NOT_FOUND` is returned otherwise.
 
 **Login**
 ```http
@@ -135,19 +145,23 @@ Both return:
   "success": true,
   "message": "Login successful",
   "data": {
-    "user": { "userId": "USR-XXXX", "name": "...", "email": "...", "role": "SUPER_ADMIN" },
+    "user": { "userId": "USR-XXXX", "name": "...", "email": "...", "role": "SUPER_ADMIN", "permissions": ["rooms:create", "rooms:read", "..."] },
     "accessToken": "...",
     "refreshToken": "..."
   }
 }
 ```
 
-Send the access token on protected routes: `Authorization: Bearer <accessToken>`.
+Send the access token on protected routes: `Authorization: Bearer <accessToken>`. The JWT itself only carries the role *name* (`payload.role`) — every permission check re-resolves that name's current permission set from the `Role` collection on each request, so editing a role's permissions (via `PUT /roles/:roleId`) takes effect for everyone holding that role immediately, without waiting for their token to expire. Reassigning *which* role a user holds (via `PUT /users/:userId/role`) does require the user to log in again (or use `/auth/refresh`), since that changes the role name embedded in the token.
 
-**Roles** (`src/utils/constants.js` → `ROLES`):
-- `SUPER_ADMIN` — full access, including deleting rooms/devices.
-- `ADMIN` — create/edit rooms, create/assign devices, control relays, configure automation, view everything.
-- `VIEWER` — read-only: rooms, devices, sensor data, history, alerts. Cannot call any relay-command or automation-write endpoint (enforced by `authorize()` in the route files).
+**Roles & permissions are dynamic** ([`src/models/Role.js`](src/models/Role.js), [`src/services/roleService.js`](src/services/roleService.js)) — not a fixed enum. The full set of definable permission keys lives in [`src/utils/permissions.js`](src/utils/permissions.js) (e.g. `rooms:create`, `devices:delete`, `alerts:update`, `admin:manage`, ...); which roles exist and which keys each one holds is entirely database-driven and managed through the `/roles` and `/users` endpoints (also exposed in the client as **Roles & Permissions** / **Users**, gated behind `admin:manage`).
+
+Three system roles are seeded automatically on server startup if missing (`roleService.ensureDefaultRoles()`), reproducing this app's original fixed-role behavior exactly:
+- `SUPER_ADMIN` — every permission, including `admin:manage`.
+- `ADMIN` — create/edit rooms, create/assign devices, control relays, configure automation, resolve alerts, view the audit log. No delete rights, no `admin:manage`.
+- `VIEWER` — read-only: rooms, devices, relays, alerts, reports.
+
+System roles can't be renamed or deleted, and the API refuses any update that would leave zero roles holding `admin:manage` (`LAST_ADMIN_ROLE`) — both guard against permanently locking every admin out. Custom roles (e.g. "Facility Manager") can be created with any subset of permission keys and assigned to users like any other role; a custom role can't be deleted while any user still holds it (`ROLE_IN_USE`).
 
 ## 8. Room Management
 

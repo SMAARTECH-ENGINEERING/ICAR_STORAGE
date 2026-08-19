@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const env = require('../config/env');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
+const Role = require('../models/Role');
 
 const authenticate = catchAsync(async (req, res, next) => {
   const header = req.headers.authorization || '';
@@ -20,16 +21,22 @@ const authenticate = catchAsync(async (req, res, next) => {
   }
 });
 
-function authorize(...allowedRoles) {
-  return (req, res, next) => {
+// Dynamic, DB-backed RBAC gate: resolves the caller's role to its current
+// permission set on every request (never trusts a JWT-embedded snapshot),
+// so revoking a permission takes effect immediately without waiting for
+// tokens to expire. Passing multiple keys means "any one of these suffices".
+function authorizePermission(...permissionKeys) {
+  return catchAsync(async (req, res, next) => {
     if (!req.user) {
       return next(ApiError.unauthorized());
     }
-    if (!allowedRoles.includes(req.user.role)) {
+    const role = await Role.findOne({ name: req.user.role });
+    const granted = role && permissionKeys.some((key) => role.permissions.includes(key));
+    if (!granted) {
       return next(ApiError.forbidden('You do not have permission to perform this action', 'FORBIDDEN'));
     }
     return next();
-  };
+  });
 }
 
 // Devices authenticate to device-facing HTTP endpoints (telemetry, command
@@ -43,4 +50,4 @@ const authenticateDevice = (req, res, next) => {
   return next();
 };
 
-module.exports = { authenticate, authorize, authenticateDevice };
+module.exports = { authenticate, authorizePermission, authenticateDevice };

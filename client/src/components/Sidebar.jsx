@@ -1,11 +1,16 @@
 import { NavLink } from 'react-router-dom';
-import { Bell, FileText, LayoutDashboard, Radio, Settings as SettingsIcon } from 'lucide-react';
+import { Bell, FileText, LayoutDashboard, Radio, ScrollText, Settings as SettingsIcon, ShieldCheck, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { hasPermission } from '../lib/constants';
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/devices', label: 'Devices', icon: Radio },
   { to: '/reports', label: 'Reports', icon: FileText },
   { to: '/alerts', label: 'Alerts', icon: Bell },
+  { to: '/audit-log', label: 'Audit Log', icon: ScrollText, requires: 'audit-logs:read' },
+  { to: '/roles', label: 'Roles & Permissions', icon: ShieldCheck, requires: 'admin:manage' },
+  { to: '/users', label: 'Users', icon: Users, requires: 'admin:manage' },
   { to: '/settings', label: 'Settings', icon: SettingsIcon },
 ];
 
@@ -29,6 +34,9 @@ function NavItem({ item, onNavigate }) {
 }
 
 export default function Sidebar({ open, onClose }) {
+  const { user } = useAuth();
+  const visibleItems = NAV_ITEMS.filter((item) => !item.requires || hasPermission(user, item.requires));
+
   return (
     <>
       {open && <div className="fixed inset-0 z-30 bg-slate-900/50 lg:hidden" onClick={onClose} />}
@@ -44,7 +52,7 @@ export default function Sidebar({ open, onClose }) {
         </div>
 
         <nav className="flex-1 space-y-1 px-3">
-          {NAV_ITEMS.map((item) => (
+          {visibleItems.map((item) => (
             <NavItem key={item.to} item={item} onNavigate={onClose} />
           ))}
         </nav>

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+import { hasPermission } from '../lib/constants';
 import Badge, { severityVariant, statusVariant } from '../components/Badge';
 import DataTable from '../components/DataTable';
+import Tooltip from '../components/Tooltip';
+import ConfirmModal from '../components/ConfirmModal';
 import { formatDateTime } from '../lib/datetime';
 
 const CRITICAL_SEVERITIES = new Set(['high', 'critical']);
@@ -17,10 +21,15 @@ const STATUS_OPTIONS = [
 
 export default function AlertsPage() {
   const { push } = useToast();
+  const { user } = useAuth();
   const [alerts, setAlerts] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [status, setStatus] = useState('active');
   const [loading, setLoading] = useState(true);
+  const [pendingAlert, setPendingAlert] = useState(null);
+  const [resolving, setResolving] = useState(false);
+
+  const refetchAlerts = () => api.listAlerts(status ? { status } : {}).then((res) => setAlerts(res.data));
 
   useEffect(() => {
     let cancelled = false;
@@ -40,6 +49,21 @@ export default function AlertsPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status]);
+
+  async function handleConfirmResolve() {
+    if (!pendingAlert) return;
+    setResolving(true);
+    try {
+      await api.resolveAlert(pendingAlert._id);
+      push('Alert resolved.', 'success');
+      setPendingAlert(null);
+      await refetchAlerts();
+    } catch (err) {
+      push(err.message, 'error');
+    } finally {
+      setResolving(false);
+    }
+  }
 
   const roomNameById = useMemo(() => {
     const map = {};
@@ -102,8 +126,32 @@ export default function AlertsPage() {
         header: 'Since',
         cell: ({ getValue }) => <span className="text-xs text-slate-500">{formatDateTime(getValue())}</span>,
       },
+      ...(hasPermission(user, 'alerts:update')
+        ? [
+            {
+              id: 'actions',
+              header: '',
+              enableSorting: false,
+              cell: ({ row }) =>
+                row.original.status === 'active' ? (
+                  <div className="text-right">
+                    <Tooltip label="Resolve alert">
+                      <button
+                        type="button"
+                        onClick={() => setPendingAlert(row.original)}
+                        className="rounded-lg p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                        aria-label="Resolve alert"
+                      >
+                        <CheckCircle2 size={16} />
+                      </button>
+                    </Tooltip>
+                  </div>
+                ) : null,
+            },
+          ]
+        : []),
     ],
-    [roomNameById]
+    [roomNameById, user?.role]
   );
 
   return (
@@ -134,6 +182,18 @@ export default function AlertsPage() {
           data={alerts}
           searchPlaceholder="Search alerts..."
           emptyMessage="No alerts found."
+        />
+      )}
+
+      {pendingAlert && (
+        <ConfirmModal
+          title="Resolve alert"
+          message={`Mark this ${pendingAlert.type} alert as resolved?`}
+          confirmLabel="Resolve"
+          danger={false}
+          loading={resolving}
+          onConfirm={handleConfirmResolve}
+          onClose={() => setPendingAlert(null)}
         />
       )}
     </div>
