@@ -1,5 +1,6 @@
 const Alert = require('../models/Alert');
 const socketService = require('../sockets');
+const pushService = require('./pushService');
 const env = require('../config/env');
 const { ALERT_TYPE, ALERT_SEVERITY, ALERT_STATUS } = require('../utils/constants');
 
@@ -28,6 +29,9 @@ async function raiseAlert({ roomId, deviceId, type, parameter, value, threshold,
   });
 
   socketService.emitToRoomAndDevice(roomId, deviceId, 'alert:created', alert);
+  // Fire-and-forget: push delivery must never add latency or risk to the
+  // telemetry/alert-evaluation path that triggered this.
+  pushService.notifyAlertCreated(alert);
   return alert;
 }
 

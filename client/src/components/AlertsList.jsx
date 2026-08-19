@@ -1,9 +1,5 @@
 import Badge, { severityVariant } from './Badge';
-
-function formatDate(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
-}
+import { formatDateTime } from '../lib/datetime';
 
 export default function AlertsList({ alerts }) {
   if (!alerts || alerts.length === 0) {
@@ -39,7 +35,7 @@ export default function AlertsList({ alerts }) {
               <td className="px-4 py-2">
                 <Badge variant={severityVariant(alert.severity)}>{alert.severity}</Badge>
               </td>
-              <td className="px-4 py-2 text-xs text-slate-500">{formatDate(alert.createdAt)}</td>
+              <td className="px-4 py-2 text-xs text-slate-500">{formatDateTime(alert.createdAt)}</td>
             </tr>
           ))}
         </tbody>

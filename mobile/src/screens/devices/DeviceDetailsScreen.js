@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import ScreenContainer from '../../components/common/ScreenContainer';
@@ -107,8 +107,9 @@ export default function DeviceDetailsScreen({ route, navigation }) {
       queryClient.invalidateQueries({ queryKey: ['devices'] });
       setConfirmDelete(false);
       navigation.goBack();
-    } catch {
+    } catch (err) {
       setDeleting(false);
+      Alert.alert('Delete Failed', err.message || 'Could not delete this device.');
     }
   }
 

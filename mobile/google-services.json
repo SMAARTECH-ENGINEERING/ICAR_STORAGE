@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1038855784045",
+    "project_id": "smaatech-agri",
+    "storage_bucket": "smaatech-agri.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1038855784045:android:a02851434c11bfcb42e164",
+        "android_client_info": {
+          "package_name": "com.jagadish7735.smaatechagri"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5Of_9NE-2RKy0nBaQCuUqwDzxvFewWMk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

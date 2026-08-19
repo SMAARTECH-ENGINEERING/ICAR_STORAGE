@@ -11,12 +11,7 @@ import { api } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import { isSuperAdmin } from '../lib/constants';
-
-function formatDate(value) {
-  if (!value) return 'never';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'never' : date.toLocaleString();
-}
+import { formatDateTime } from '../lib/datetime';
 
 export default function DeviceCard({ device, sensorState, relays, onDeleted }) {
   const { user } = useAuth();
@@ -52,7 +47,7 @@ export default function DeviceCard({ device, sensorState, relays, onDeleted }) {
           <p className="font-mono text-xs text-slate-400">{device.deviceId}</p>
           <p className="mt-1 text-xs text-slate-500">
             {device.deviceType && <>{device.deviceType} · </>}
-            last seen {formatDate(device.lastSeen)}
+            last seen {formatDateTime(device.lastSeen, 'never')}
           </p>
         </div>
         {isSuperAdmin(user?.role) && (

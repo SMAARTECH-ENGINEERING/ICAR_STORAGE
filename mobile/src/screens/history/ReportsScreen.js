@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import AppHeader from '../../components/common/AppHeader';
 import FilterChip from '../../components/common/FilterChip';
@@ -20,6 +20,8 @@ const PRESETS = [
   { key: '30d', label: '30 Days', days: 30 },
   { key: '90d', label: '90 Days', days: 90 },
 ];
+
+const PAGE_SIZE = 40;
 
 function startOfDay(date) {
   const d = new Date(date);
@@ -75,18 +77,32 @@ export default function ReportsScreen({ navigation }) {
     setToDate(endOfDay(date));
   }
 
-  const historyQuery = useQuery({
-    queryKey: queryKeys.roomHistory(roomId, { deviceId: deviceFilter, from: fromDate.toISOString(), to: toDate.toISOString() }),
-    queryFn: () =>
+  const fromIso = fromDate.toISOString();
+  const toIso = toDate.toISOString();
+
+  // Keyset pagination: the backend has no offset/page param, but results are
+  // sorted newest-first, so each next page just narrows the upper bound to
+  // just before the oldest reading already loaded (never past the report's
+  // own `from` boundary).
+  const historyQuery = useInfiniteQuery({
+    queryKey: queryKeys.roomHistory(roomId, { deviceId: deviceFilter, from: fromIso, to: toIso }),
+    queryFn: ({ pageParam }) =>
       roomApi.history(roomId, {
-        from: fromDate.toISOString(),
-        to: toDate.toISOString(),
-        limit: 1000,
+        from: fromIso,
+        to: pageParam || toIso,
+        limit: PAGE_SIZE,
         ...(deviceFilter !== 'all' ? { deviceId: deviceFilter } : {}),
       }),
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
+      const oldest = lastPage[lastPage.length - 1];
+      return new Date(new Date(oldest.timestamp).getTime() - 1).toISOString();
+    },
     enabled: !!roomId,
   });
-  const readings = historyQuery.data || [];
+
+  const readings = useMemo(() => historyQuery.data?.pages.flat() || [], [historyQuery.data]);
 
   const summary = useMemo(() => {
     if (readings.length === 0) return null;
@@ -120,43 +136,46 @@ export default function ReportsScreen({ navigation }) {
         <EmptyState icon="business-outline" title="No Rooms Yet" description="Create a room to start generating reports." />
       ) : (
         <>
-          <FlatList
-            data={rooms}
+          <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.roomId}
             style={styles.chipList}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-            renderItem={({ item }) => (
-              <FilterChip label={item.name} active={roomId === item.roomId} onPress={() => setRoomId(item.roomId)} />
-            )}
-          />
+            contentContainerStyle={styles.chipListContent}
+          >
+            {rooms.map((item) => (
+              <FilterChip key={item.roomId} label={item.name} active={roomId === item.roomId} onPress={() => setRoomId(item.roomId)} />
+            ))}
+          </ScrollView>
 
           {devices.length > 1 ? (
-            <FlatList
-              data={[{ deviceId: 'all', name: 'All Devices' }, ...devices]}
+            <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              keyExtractor={(item) => item.deviceId}
               style={styles.chipList}
-              contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-              renderItem={({ item }) => (
-                <FilterChip label={item.name} active={deviceFilter === item.deviceId} onPress={() => setDeviceFilter(item.deviceId)} />
-              )}
-            />
+              contentContainerStyle={styles.chipListContent}
+            >
+              <FilterChip label="All Devices" active={deviceFilter === 'all'} onPress={() => setDeviceFilter('all')} />
+              {devices.map((item) => (
+                <FilterChip
+                  key={item.deviceId}
+                  label={item.name}
+                  active={deviceFilter === item.deviceId}
+                  onPress={() => setDeviceFilter(item.deviceId)}
+                />
+              ))}
+            </ScrollView>
           ) : null}
 
-          <FlatList
-            data={PRESETS}
+          <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.key}
             style={styles.chipList}
-            contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-            renderItem={({ item }) => (
-              <FilterChip label={item.label} active={preset === item.key} onPress={() => applyPreset(item.key)} />
-            )}
-          />
+            contentContainerStyle={styles.chipListContent}
+          >
+            {PRESETS.map((item) => (
+              <FilterChip key={item.key} label={item.label} active={preset === item.key} onPress={() => applyPreset(item.key)} />
+            ))}
+          </ScrollView>
 
           <View style={styles.dateRow}>
             <DatePickerField label="From" value={fromDate} maximumDate={toDate} onChange={handleFromChange} />
@@ -173,13 +192,17 @@ export default function ReportsScreen({ navigation }) {
               keyExtractor={(item) => item._id}
               contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
-              refreshing={historyQuery.isRefetching}
+              refreshing={historyQuery.isRefetching && !historyQuery.isFetchingNextPage}
               onRefresh={() => historyQuery.refetch()}
+              onEndReachedThreshold={0.4}
+              onEndReached={() => {
+                if (historyQuery.hasNextPage && !historyQuery.isFetchingNextPage) historyQuery.fetchNextPage();
+              }}
               ListHeaderComponent={
                 summary ? (
                   <View style={styles.summaryCard}>
                     <View style={styles.summaryRow}>
-                      <SummaryStat label="Readings" value={summary.count} />
+                      <SummaryStat label="Loaded" value={summary.count} />
                       <SummaryStat label="Avg Temp" value={summary.avgTemp !== null ? `${summary.avgTemp.toFixed(1)}°C` : '--'} />
                       <SummaryStat label="Avg Humidity" value={summary.avgHumidity !== null ? `${summary.avgHumidity.toFixed(0)}%` : '--'} />
                       <SummaryStat label="Peak CO2" value={summary.maxCo2 !== null ? `${summary.maxCo2.toFixed(0)} ppm` : '--'} />
@@ -188,6 +211,9 @@ export default function ReportsScreen({ navigation }) {
                 ) : null
               }
               renderItem={({ item }) => <HistoryRow reading={item} />}
+              ListFooterComponent={
+                historyQuery.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={styles.footerLoader} /> : null
+              }
               ListEmptyComponent={
                 <EmptyState icon="bar-chart-outline" title="No Data" description="No sensor readings found for this date range." />
               }
@@ -230,8 +256,10 @@ function HistoryRow({ reading }) {
 
 const styles = StyleSheet.create({
   chipList: { flexGrow: 0, marginTop: spacing.md },
+  chipListContent: { paddingHorizontal: spacing.lg },
   dateRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.md },
   listContent: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: 60, flexGrow: 1 },
+  footerLoader: { marginVertical: spacing.md },
   summaryCard: {
     flexDirection: 'row',
     backgroundColor: colors.card,

@@ -10,12 +10,7 @@ import DataTable from '../components/DataTable';
 import CreateDeviceModal from '../components/CreateDeviceModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Tooltip from '../components/Tooltip';
-
-function formatDate(value) {
-  if (!value) return 'never';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'never' : date.toLocaleString();
-}
+import { formatDateTime } from '../lib/datetime';
 
 export default function DevicesPage() {
   const { user } = useAuth();
@@ -108,7 +103,7 @@ export default function DevicesPage() {
       {
         accessorKey: 'lastSeen',
         header: 'Last Seen',
-        cell: ({ getValue }) => <span className="text-slate-500">{formatDate(getValue())}</span>,
+        cell: ({ getValue }) => <span className="text-slate-500">{formatDateTime(getValue(), 'never')}</span>,
       },
       {
         id: 'actions',

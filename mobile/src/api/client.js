@@ -52,7 +52,13 @@ http.interceptors.response.use(
       }
     }
 
-    const message = data?.message || error.message || 'Something went wrong';
+    // Validation errors (400 VALIDATION_ERROR) carry the real reason in
+    // `details` (per-field Joi messages) while `message` is just the generic
+    // "Validation failed" wrapper — surface the specifics when present.
+    let message = data?.message || error.message || 'Something went wrong';
+    if (Array.isArray(data?.details) && data.details.length) {
+      message = data.details.join('\n');
+    }
     const normalized = new Error(message);
     normalized.status = status;
     normalized.errorCode = data?.errorCode;

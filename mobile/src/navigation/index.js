@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { SocketProvider } from '../context/SocketContext';
 import AuthNavigator from './AuthNavigator';
 import RootNavigator from './RootNavigator';
+import { navigationRef } from './navigationRef';
 import useGlobalRealtimeSync from '../hooks/useGlobalRealtimeSync';
 
 function RealtimeSync() {
@@ -25,7 +26,7 @@ export default function AppNavigator() {
 
   return (
     <SocketProvider>
-      <NavigationContainer>
+      <NavigationContainer ref={navigationRef}>
         {isAuthenticated ? (
           <>
             <RealtimeSync />

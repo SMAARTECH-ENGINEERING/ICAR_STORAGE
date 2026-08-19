@@ -53,6 +53,7 @@ Admin-panel layout: a persistent sidebar (Dashboard / Devices / Reports / Alerts
   - **Simulate Device (Process Pending Commands)** — stands in for that missing device: polls `GET /commands/pending` and acknowledges everything as successful, so you can watch a relay actually flip to `CONFIRMED` without real firmware.
   - **Send Test Telemetry** — a small JSON editor on each device card that POSTs to `/devices/telemetry` using the configured Device API Key, so you can exercise the whole pipeline (storage → automation → alerts → live UI update) without real hardware.
 - Role-gated UI: `VIEWER` sees everything read-only; `ADMIN` can manage rooms/devices/relays/automation; only `SUPER_ADMIN` can delete rooms/devices, matching the backend's RBAC exactly (the UI hides actions the backend would reject, but the backend is still the source of truth).
+- Every timestamp shown anywhere in the app (`lib/datetime.js`) is rendered in **IST (Asia/Kolkata)**, regardless of the viewing device's own timezone — the backend stores UTC, and a bare `toLocaleString()` would otherwise follow whatever timezone the browser happens to be set to.
 
 ## Project Structure
 

@@ -9,33 +9,21 @@
     "backgroundColor": "#F8FAFC",
     "scheme": "smaatechagri",
     "ios": {
-      "supportsTablet": true,
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
-      }
+      "supportsTablet": true
     },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/adaptive-icon.png"
       },
-      "package": "com.jagadish7735.smaatechagri"
+      "package": "com.jagadish7735.smaatechagri",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/icon.png"
     },
     "plugins": [
       "expo-secure-store",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "usesCleartextTraffic": true
-          }
-        }
-      ],
       [
         "expo-splash-screen",
         {
@@ -45,7 +33,20 @@
         }
       ],
       "expo-font",
-      "@react-native-community/datetimepicker"
-    ]
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#16A34A"
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ae06f2ec-8660-4d21-83f1-99f69b41a992"
+      }
+    },
+    "owner": "jagadish7735"
   }
 }

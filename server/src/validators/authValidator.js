@@ -17,4 +17,19 @@ const refreshSchema = Joi.object({
   refreshToken: Joi.string().required(),
 });
 
-module.exports = { registerSchema, loginSchema, refreshSchema };
+const registerPushTokenSchema = Joi.object({
+  token: Joi.string().trim().required(),
+  platform: Joi.string().valid('ios', 'android').required(),
+});
+
+const removePushTokenSchema = Joi.object({
+  token: Joi.string().trim().required(),
+});
+
+module.exports = {
+  registerSchema,
+  loginSchema,
+  refreshSchema,
+  registerPushTokenSchema,
+  removePushTokenSchema,
+};

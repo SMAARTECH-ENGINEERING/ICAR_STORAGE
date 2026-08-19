@@ -8,6 +8,7 @@ import {
   getStoredUser,
   setStoredUser,
 } from '../services/storageService';
+import { unregisterPushToken } from '../services/notificationService';
 
 const AuthContext = createContext(null);
 
@@ -16,6 +17,9 @@ export function AuthProvider({ children }) {
   const [initializing, setInitializing] = useState(true);
 
   const logout = useCallback(async () => {
+    // Must run before clearAuthStorage — unregistering needs a valid token
+    // to authenticate the request that removes it server-side.
+    await unregisterPushToken();
     await clearAuthStorage();
     setUser(null);
   }, []);
@@ -37,10 +41,15 @@ export function AuthProvider({ children }) {
         return;
       }
       try {
+        // GET /auth/me only echoes the JWT payload (userId, role, email) —
+        // it does not include `name`, so merge onto the cached user instead
+        // of replacing it outright, or the display name would disappear on
+        // every app restart.
         const freshUser = await authApi.me();
         if (cancelled) return;
-        setUser(freshUser);
-        await setStoredUser(freshUser);
+        const merged = { ...cached, ...freshUser };
+        setUser(merged);
+        await setStoredUser(merged);
       } catch {
         if (cancelled) return;
         await clearAuthStorage();

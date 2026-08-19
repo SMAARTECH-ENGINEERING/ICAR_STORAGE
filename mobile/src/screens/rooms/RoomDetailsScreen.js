@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import ScreenContainer from '../../components/common/ScreenContainer';
@@ -126,6 +126,7 @@ export default function RoomDetailsScreen({ route, navigation }) {
       navigation.goBack();
     } catch (err) {
       setDeleting(false);
+      Alert.alert('Delete Failed', err.message || 'Could not delete this room.');
     }
   }
 

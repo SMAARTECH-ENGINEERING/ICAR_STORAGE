@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Alert, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import ScreenContainer from '../../components/common/ScreenContainer';
@@ -8,6 +8,7 @@ import AnimatedCard from '../../components/common/AnimatedCard';
 import ConfirmModal from '../../components/common/ConfirmModal';
 import { useAuth } from '../../context/AuthContext';
 import { roleLabel } from '../../utils/permissions';
+import { getNotificationPermissionStatus, requestNotificationPermissions } from '../../services/notificationService';
 import { colors, radius, spacing, typography } from '../../theme';
 
 const ROLE_TONE = { SUPER_ADMIN: 'danger', ADMIN: 'info', VIEWER: 'neutral' };
@@ -16,6 +17,38 @@ export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const [confirmLogout, setConfirmLogout] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [notifStatus, setNotifStatus] = useState(null);
+
+  useEffect(() => {
+    getNotificationPermissionStatus().then(setNotifStatus);
+  }, []);
+
+  async function handleNotificationsPress() {
+    if (notifStatus === 'unsupported') {
+      Alert.alert(
+        'Not Available in Expo Go',
+        'Push and local notifications require a development build on Android. This works once the app is built outside of Expo Go.'
+      );
+      return;
+    }
+    if (notifStatus === 'granted') {
+      Alert.alert('Notifications', 'You will be notified about new alerts on this device.');
+      return;
+    }
+    if (notifStatus === 'denied') {
+      Alert.alert(
+        'Notifications Disabled',
+        'Enable notifications in system settings to get alerted about critical sensor and device events.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ]
+      );
+      return;
+    }
+    const granted = await requestNotificationPermissions();
+    setNotifStatus(granted ? 'granted' : 'denied');
+  }
 
   const initials = (user?.name || '?')
     .split(' ')
@@ -63,8 +96,16 @@ export default function ProfileScreen({ navigation }) {
           <SettingRow
             icon="notifications-outline"
             label="Notifications"
-            hint="Alerts and system notifications"
-            onPress={() => Alert.alert('Notifications', 'Notification preferences are coming soon.')}
+            hint={
+              notifStatus === 'granted'
+                ? 'Enabled — you’ll be alerted on this device'
+                : notifStatus === 'denied'
+                ? 'Disabled — tap to enable'
+                : notifStatus === 'unsupported'
+                ? 'Requires a development build'
+                : 'Tap to enable alert notifications'
+            }
+            onPress={handleNotificationsPress}
           />
           <SettingRow
             icon="color-palette-outline"

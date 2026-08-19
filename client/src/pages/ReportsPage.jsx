@@ -3,11 +3,7 @@ import { Search, X } from 'lucide-react';
 import { api } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
 import DataTable from '../components/DataTable';
-
-function formatDateTime(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
-}
+import { formatDateTime } from '../lib/datetime';
 
 // Compact one-line summaries for the dynamic sensors/relays objects — no
 // fixed zone names or relay count assumed, same philosophy as SensorZones.jsx.

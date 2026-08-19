@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "b6f2a1c4-3e1a-4c2a-9d2e-1f7a8c0d5e11",
     "name": "IoT Backend - ICAR Storage",
-    "description": "API collection for the dynamic multi-room IoT environmental monitoring and relay-control backend. All requests target the actual routes implemented under src/routes/. Run the folders top to bottom in Collection Runner: Auth -> Rooms -> Devices -> Telemetry -> Room State -> Relays -> Alerts -> Multi-Room Test.",
+    "description": "API collection for the dynamic multi-room IoT environmental monitoring and relay-control backend. All requests target the actual routes implemented under src/routes/. Run the folders top to bottom in Collection Runner: Auth -> Rooms -> Devices -> Telemetry -> Room State -> Relays -> Alerts -> Reports -> RBAC Negative Tests -> Multi-Room Test.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -15,6 +15,9 @@
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:5000/api/v1", "type": "string" },
     { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "viewerAccessToken", "value": "", "type": "string" },
+    { "key": "reportFrom", "value": "", "type": "string" },
+    { "key": "reportTo", "value": "", "type": "string" },
     { "key": "roomId", "value": "", "type": "string" },
     { "key": "deviceId", "value": "", "type": "string" },
     { "key": "relayId", "value": "", "type": "string" },
@@ -687,6 +690,200 @@
               }
             }
           ]
+        },
+        {
+          "name": "Get Temperature Control Rule",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/automation",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "automation"]
+            },
+            "description": "Reads the temperature-based automation (hysteresis) rule for {{relayId}} — the thresholds that drive automatic ON/OFF switching. Returns 404 AUTOMATION_RULE_NOT_FOUND if none is configured yet; run 'Set Temperature Control ON' below first."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 or 404 (no rule configured yet)', function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Rule has thresholdOn/thresholdOff/zones', function () {",
+                  "        var json = pm.response.json();",
+                  "        pm.expect(json.data).to.have.property('thresholdOn');",
+                  "        pm.expect(json.data).to.have.property('thresholdOff');",
+                  "        pm.expect(json.data).to.have.property('zones');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Temperature Control ON (Enable Automation)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"zones\": [\"upper\", \"middle\", \"lower\"],\n  \"thresholdOn\": 30,\n  \"thresholdOff\": 28\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/automation",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "automation"]
+            },
+            "description": "Turns temperature-control automation ON for {{relayId}}: the backend takes over and switches it ON once the max temperature across upper/middle/lower reaches 30°C, and OFF at 28°C — hysteresis between the two prevents rapid on/off oscillation. Requires SUPER_ADMIN or ADMIN."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Automation is enabled with the requested thresholds', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data.enabled).to.eql(true);",
+                  "    pm.expect(json.data.thresholdOn).to.eql(30);",
+                  "    pm.expect(json.data.thresholdOff).to.eql(28);",
+                  "    pm.expect(json.data.zones).to.include('upper');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Temperature Control OFF (Disable Automation)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false,\n  \"zones\": [\"upper\", \"middle\", \"lower\"],\n  \"thresholdOn\": 30,\n  \"thresholdOff\": 28\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/automation",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "automation"]
+            },
+            "description": "Turns temperature-control automation OFF for {{relayId}} — the rule and its thresholds stay saved, but the automation engine skips disabled rules, so the relay only responds to manual ON/OFF commands until re-enabled."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Automation is disabled but thresholds are preserved', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.enabled).to.eql(false);",
+                  "    pm.expect(json.data.thresholdOn).to.eql(30);",
+                  "    pm.expect(json.data.thresholdOff).to.eql(28);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List All Temperature Control Rules for Device",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/automation",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "automation"]
+            },
+            "description": "Lists every automation rule configured across all of this device's relays (not just {{relayId}})."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response includes the rule for relayId', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    var match = json.data.find(function (r) { return r.relayId === pm.environment.get('relayId'); });",
+                  "    pm.expect(match, 'rule for relayId should be present').to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Set Temperature Control - Invalid Thresholds (Negative Test)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"zones\": [\"upper\"],\n  \"thresholdOn\": 28,\n  \"thresholdOff\": 30\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/automation",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "automation"]
+            },
+            "description": "thresholdOff (30) is >= thresholdOn (28), which is physically nonsensical (the relay would never settle) — the backend's Joi validation must reject this with 400 regardless of role."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400 for an inverted threshold pair', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error code is VALIDATION_ERROR', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(false);",
+                  "    pm.expect(json.errorCode).to.eql('VALIDATION_ERROR');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -733,6 +930,534 @@
                   "} else {",
                   "    console.log('No active alerts for this room yet - alertId not set.');",
                   "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Reports",
+      "description": "Historical sensor readings across every room (GET /reports/sensor-history) — exercises every supported filter combination: no filters, room-only, device-only, date-range-only, all combined, a result-count limit, and an invalid-input negative test.",
+      "item": [
+        {
+          "name": "Get Sensor History (No Filters)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sensor-history",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "sensor-history"]
+            },
+            "description": "The unfiltered report — every SensorReading across every room, newest first, capped at the default limit (500). This is what the Reports page in the dashboard shows on first load."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response data is an array and includes readings from the earlier Send Telemetry request', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(true);",
+                  "    pm.expect(json.data).to.be.an('array').that.is.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Readings are sorted newest first', function () {",
+                  "    var json = pm.response.json();",
+                  "    for (var i = 1; i < json.data.length; i++) {",
+                  "        pm.expect(new Date(json.data[i - 1].timestamp).getTime()).to.be.at.least(new Date(json.data[i].timestamp).getTime());",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by Room",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sensor-history?roomId={{roomId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "sensor-history"],
+              "query": [{ "key": "roomId", "value": "{{roomId}}" }]
+            },
+            "description": "Narrows the report to a single room — the global equivalent of GET /rooms/:roomId/history."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Every reading belongs to roomId', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array').that.is.not.empty;",
+                  "    json.data.forEach(function (reading) {",
+                  "        pm.expect(reading.roomId).to.eql(pm.environment.get('roomId'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by Device",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sensor-history?deviceId={{deviceId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "sensor-history"],
+              "query": [{ "key": "deviceId", "value": "{{deviceId}}" }]
+            },
+            "description": "Narrows the report to a single device, independent of which room it's in."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Every reading belongs to deviceId', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array').that.is.not.empty;",
+                  "    json.data.forEach(function (reading) {",
+                  "        pm.expect(reading.deviceId).to.eql(pm.environment.get('deviceId'));",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by Date Range (From/To)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sensor-history?from={{reportFrom}}&to={{reportTo}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "sensor-history"],
+              "query": [
+                { "key": "from", "value": "{{reportFrom}}" },
+                { "key": "to", "value": "{{reportTo}}" }
+              ]
+            },
+            "description": "Narrows the report to a time window. reportFrom/reportTo are computed fresh in the pre-request script as (now - 24h) .. (now + 1h), so this always brackets whatever telemetry this run just sent."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var now = Date.now();",
+                  "pm.environment.set('reportFrom', new Date(now - 24 * 60 * 60 * 1000).toISOString());",
+                  "pm.environment.set('reportTo', new Date(now + 60 * 60 * 1000).toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Every reading falls within the from/to window', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array').that.is.not.empty;",
+                  "    var from = new Date(pm.environment.get('reportFrom')).getTime();",
+                  "    var to = new Date(pm.environment.get('reportTo')).getTime();",
+                  "    json.data.forEach(function (reading) {",
+                  "        var t = new Date(reading.timestamp).getTime();",
+                  "        pm.expect(t).to.be.at.least(from);",
+                  "        pm.expect(t).to.be.at.most(to);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Filter Combined (Room + Device + Date Range)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sensor-history?roomId={{roomId}}&deviceId={{deviceId}}&from={{reportFrom}}&to={{reportTo}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "sensor-history"],
+              "query": [
+                { "key": "roomId", "value": "{{roomId}}" },
+                { "key": "deviceId", "value": "{{deviceId}}" },
+                { "key": "from", "value": "{{reportFrom}}" },
+                { "key": "to", "value": "{{reportTo}}" }
+              ]
+            },
+            "description": "All four filters at once — the same query the dashboard's Reports page form sends when every field is filled in."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Every reading matches roomId, deviceId, and the date window', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data).to.be.an('array').that.is.not.empty;",
+                  "    var from = new Date(pm.environment.get('reportFrom')).getTime();",
+                  "    var to = new Date(pm.environment.get('reportTo')).getTime();",
+                  "    json.data.forEach(function (reading) {",
+                  "        pm.expect(reading.roomId).to.eql(pm.environment.get('roomId'));",
+                  "        pm.expect(reading.deviceId).to.eql(pm.environment.get('deviceId'));",
+                  "        var t = new Date(reading.timestamp).getTime();",
+                  "        pm.expect(t).to.be.at.least(from);",
+                  "        pm.expect(t).to.be.at.most(to);",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by Limit",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sensor-history?limit=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "sensor-history"],
+              "query": [{ "key": "limit", "value": "1" }]
+            },
+            "description": "Caps the result count. The backend clamps this at 5000 regardless of what's requested (see reportController.js)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has at most 1 reading', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.length).to.be.at.most(1);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Filter by Invalid Date (Negative Test)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/reports/sensor-history?from=not-a-real-date",
+              "host": ["{{baseUrl}}"],
+              "path": ["reports", "sensor-history"],
+              "query": [{ "key": "from", "value": "not-a-real-date" }]
+            },
+            "description": "An unparseable 'from' value must be rejected with 400 INVALID_DATE_RANGE, not silently ignored or turned into a 500."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Error code is INVALID_DATE_RANGE', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.success).to.eql(false);",
+                  "    pm.expect(json.errorCode).to.eql('INVALID_DATE_RANGE');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RBAC Negative Tests",
+      "description": "Confirms VIEWER is genuinely read-only: allowed to GET, forbidden (403) from every write/control endpoint — not just relying on the UI to hide buttons.",
+      "item": [
+        {
+          "name": "Register Viewer (Setup)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Viewer User\",\n  \"email\": \"viewer@example.com\",\n  \"password\": \"Password@123\",\n  \"role\": \"VIEWER\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Creates a VIEWER account for the negative tests below. 201 on first run, 409 USER_EXISTS on reruns — both are fine, 'Login as Viewer' gets the token either way."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 201 (created) or 409 (already registered)', function () {",
+                  "    pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login as Viewer",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"viewer@example.com\",\n  \"password\": \"Password@123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Logs in as the VIEWER account and stores its token separately from the SUPER_ADMIN {{accessToken}}, so the requests below can exercise both roles side by side."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Viewer token saved and role is VIEWER', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.data.user.role).to.eql('VIEWER');",
+                  "    pm.environment.set('viewerAccessToken', json.data.accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Viewer Allowed - Get Relays (read access works)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{viewerAccessToken}}", "type": "string" }]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays"]
+            },
+            "description": "VIEWER can read everything — this should succeed, in contrast to the write attempts below."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 200 (viewers can read)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Viewer Forbidden - Create Room",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{viewerAccessToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Viewer Should Not Be Able To Create This\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/rooms",
+              "host": ["{{baseUrl}}"],
+              "path": ["rooms"]
+            },
+            "description": "Room creation requires SUPER_ADMIN or ADMIN — VIEWER must get 403."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Error code is FORBIDDEN', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.errorCode).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Viewer Forbidden - Manual Relay Command",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{viewerAccessToken}}", "type": "string" }]
+            },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"manual\",\n  \"state\": \"ON\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/command",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "command"]
+            },
+            "description": "Manual relay control requires SUPER_ADMIN or ADMIN — VIEWER must get 403, confirming the backend enforces this and not just the UI (which hides the button)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Error code is FORBIDDEN', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.errorCode).to.eql('FORBIDDEN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Viewer Forbidden - Set Temperature Control",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{viewerAccessToken}}", "type": "string" }]
+            },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"zones\": [\"upper\"],\n  \"thresholdOn\": 30,\n  \"thresholdOff\": 28\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/devices/{{deviceId}}/relays/{{relayId}}/automation",
+              "host": ["{{baseUrl}}"],
+              "path": ["devices", "{{deviceId}}", "relays", "{{relayId}}", "automation"]
+            },
+            "description": "Configuring temperature-control automation requires SUPER_ADMIN or ADMIN — VIEWER must get 403."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status code is 403', function () {",
+                  "    pm.response.to.have.status(403);",
+                  "});",
+                  "",
+                  "pm.test('Error code is FORBIDDEN', function () {",
+                  "    var json = pm.response.json();",
+                  "    pm.expect(json.errorCode).to.eql('FORBIDDEN');",
+                  "});"
                 ]
               }
             }

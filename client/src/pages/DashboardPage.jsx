@@ -11,11 +11,7 @@ import DataTable from '../components/DataTable';
 import CreateRoomModal from '../components/CreateRoomModal';
 import ConfirmModal from '../components/ConfirmModal';
 import Tooltip from '../components/Tooltip';
-
-function formatDate(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString();
-}
+import { formatDate } from '../lib/datetime';
 
 export default function DashboardPage() {
   const { user } = useAuth();

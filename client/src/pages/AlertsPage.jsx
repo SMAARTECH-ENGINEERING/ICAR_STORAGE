@@ -5,13 +5,9 @@ import { api } from '../lib/apiClient';
 import { useToast } from '../context/ToastContext';
 import Badge, { severityVariant, statusVariant } from '../components/Badge';
 import DataTable from '../components/DataTable';
+import { formatDateTime } from '../lib/datetime';
 
 const CRITICAL_SEVERITIES = new Set(['high', 'critical']);
-
-function formatDate(value) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString();
-}
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Active' },
@@ -104,7 +100,7 @@ export default function AlertsPage() {
       {
         accessorKey: 'createdAt',
         header: 'Since',
-        cell: ({ getValue }) => <span className="text-xs text-slate-500">{formatDate(getValue())}</span>,
+        cell: ({ getValue }) => <span className="text-xs text-slate-500">{formatDateTime(getValue())}</span>,
       },
     ],
     [roomNameById]

@@ -33,7 +33,9 @@ export function connect(token) {
   setStatus('connecting');
   socket = io(SOCKET_URL, {
     auth: token ? { token } : undefined,
-    transports: ['websocket'],
+    // Falls back to long-polling if a websocket upgrade doesn't make it
+    // through the reverse proxy in front of the backend.
+    transports: ['websocket', 'polling'],
     reconnection: true,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 8000,

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { useQuery } from '@tanstack/react-query';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import ScreenContainer from '../../components/common/ScreenContainer';
 import AppHeader from '../../components/common/AppHeader';
 import FilterChip from '../../components/common/FilterChip';
@@ -19,6 +19,8 @@ const RANGES = [
   { key: '30d', label: '30 Days', hours: 24 * 30 },
 ];
 
+const PAGE_SIZE = 40;
+
 export default function SensorHistoryScreen({ route, navigation }) {
   const { roomId, deviceId: initialDeviceId } = route.params;
   const [range, setRange] = useState('24h');
@@ -30,45 +32,61 @@ export default function SensorHistoryScreen({ route, navigation }) {
   const selectedRange = RANGES.find((r) => r.key === range) || RANGES[0];
   const from = useMemo(() => new Date(Date.now() - selectedRange.hours * 3600 * 1000).toISOString(), [selectedRange]);
 
-  const historyQuery = useQuery({
+  // Keyset pagination: the backend has no offset/page param, but results are
+  // sorted newest-first, so each next page just narrows `to` to just before
+  // the oldest reading already loaded.
+  const historyQuery = useInfiniteQuery({
     queryKey: queryKeys.roomHistory(roomId, { deviceId: deviceFilter, from }),
-    queryFn: () =>
+    queryFn: ({ pageParam }) =>
       roomApi.history(roomId, {
         from,
-        limit: 200,
+        to: pageParam,
+        limit: PAGE_SIZE,
         ...(deviceFilter !== 'all' ? { deviceId: deviceFilter } : {}),
       }),
+    initialPageParam: undefined,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage || lastPage.length < PAGE_SIZE) return undefined;
+      const oldest = lastPage[lastPage.length - 1];
+      return new Date(new Date(oldest.timestamp).getTime() - 1).toISOString();
+    },
   });
 
   const devices = devicesQuery.data || [];
-  const readings = historyQuery.data || [];
+  const readings = useMemo(() => historyQuery.data?.pages.flat() || [], [historyQuery.data]);
 
   return (
     <ScreenContainer edges={['top', 'left', 'right']} statusBarStyle="light">
       <AppHeader title="Sensor History" subtitle={roomQuery.data?.name} onBack={() => navigation.goBack()} />
 
-      <FlatList
-        data={RANGES}
+      <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        keyExtractor={(item) => item.key}
-        style={styles.filterList}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-        renderItem={({ item }) => <FilterChip label={item.label} active={range === item.key} onPress={() => setRange(item.key)} />}
-      />
+        style={styles.filterRow}
+        contentContainerStyle={styles.filterRowContent}
+      >
+        {RANGES.map((item) => (
+          <FilterChip key={item.key} label={item.label} active={range === item.key} onPress={() => setRange(item.key)} />
+        ))}
+      </ScrollView>
 
       {devices.length > 1 ? (
-        <FlatList
-          data={[{ deviceId: 'all', name: 'All Devices' }, ...devices]}
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={(item) => item.deviceId}
-          style={styles.filterList}
-          contentContainerStyle={{ paddingHorizontal: spacing.lg }}
-          renderItem={({ item }) => (
-            <FilterChip label={item.name} active={deviceFilter === item.deviceId} onPress={() => setDeviceFilter(item.deviceId)} />
-          )}
-        />
+          style={styles.filterRow}
+          contentContainerStyle={styles.filterRowContent}
+        >
+          <FilterChip label="All Devices" active={deviceFilter === 'all'} onPress={() => setDeviceFilter('all')} />
+          {devices.map((item) => (
+            <FilterChip
+              key={item.deviceId}
+              label={item.name}
+              active={deviceFilter === item.deviceId}
+              onPress={() => setDeviceFilter(item.deviceId)}
+            />
+          ))}
+        </ScrollView>
       ) : null}
 
       {historyQuery.isLoading ? (
@@ -81,9 +99,16 @@ export default function SensorHistoryScreen({ route, navigation }) {
           keyExtractor={(item) => item._id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
-          refreshing={historyQuery.isRefetching}
+          refreshing={historyQuery.isRefetching && !historyQuery.isFetchingNextPage}
           onRefresh={() => historyQuery.refetch()}
+          onEndReachedThreshold={0.4}
+          onEndReached={() => {
+            if (historyQuery.hasNextPage && !historyQuery.isFetchingNextPage) historyQuery.fetchNextPage();
+          }}
           renderItem={({ item }) => <HistoryRow reading={item} />}
+          ListFooterComponent={
+            historyQuery.isFetchingNextPage ? <ActivityIndicator color={colors.primary} style={styles.footerLoader} /> : null
+          }
           ListEmptyComponent={
             <EmptyState icon="time-outline" title="No History" description="No sensor readings found for this time range." />
           }
@@ -114,8 +139,10 @@ function HistoryRow({ reading }) {
 }
 
 const styles = StyleSheet.create({
-  filterList: { flexGrow: 0, marginBottom: spacing.sm },
+  filterRow: { flexGrow: 0, marginBottom: spacing.sm },
+  filterRowContent: { paddingHorizontal: spacing.lg },
   listContent: { paddingHorizontal: spacing.lg, paddingBottom: 60, flexGrow: 1 },
+  footerLoader: { marginVertical: spacing.md },
   row: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
